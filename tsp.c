@@ -1105,7 +1105,7 @@ void print_state(st_t *states, int si)
     
     printf("......\n");
     
-    printf("path: ");
+    printf("path : ");
     for(i = 0; i < CITY_NUM + 1; i++)
         (states+si)->path[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->path[i]);
     printf("\n");   
@@ -1427,8 +1427,27 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
     (*si_ptr)++;
     assert(complement(states+ *si_ptr));
 }
+// ....................................... //
+void push(int city, st_t *state)
+{
+    assert(state->stack[CITY_NUM]==NO_CITY);
+    int i;
+    for(i=CITY_NUM; i>0; i--)
+        state->stack[i]=state->stack[i-1];
+    state->stack[0]=city;
+}
 
-//    =========    //
+int pop(st_t *state)
+{
+    int r=state->stack[0];
+    assert(r!= NO_CITY);
+    int i;
+    for(i=1; i<=CITY_NUM; i++)
+        state->stack[i-1]=state->stack[i];
+    return r;
+}
+
+//    ======================================    //
 void step_backward(st_t *states, int* si_ptr)
 {
     int si=*si_ptr;
@@ -1601,7 +1620,13 @@ void search(void)
 
     states_keeper(states, 0, WRITE);
     for(i=0; i<CITY_NUM+1; i++)
-        states[0].stack[i]=NO_CITY;
+        states[0].stack[i]=NO_CITY; // init stack
+    /*push(0,states);
+    push(2,states);
+    push(1,states);
+    pop(states);
+    pop(states);
+    pop(states);*/
     
     states_keeper(states, 1, READ);
     print_state(states, 0);
