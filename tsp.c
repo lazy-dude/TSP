@@ -1067,6 +1067,7 @@ struct st_t
 {
     int vertex[CITY_NUM * MAX_NEXT]; 
     int path[CITY_NUM+1];
+    int stack[CITY_NUM+1];
     // uint64_t hash; // TODO sum of all city but NO_CITY
     int step; // TODO steps in path
     GLfloat dist;
@@ -1104,9 +1105,16 @@ void print_state(st_t *states, int si)
     
     printf("......\n");
     
+    printf("path: ");
     for(i = 0; i < CITY_NUM + 1; i++)
         (states+si)->path[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->path[i]);
     printf("\n");   
+    
+    printf("stack: ");
+    for(i = 0; i < CITY_NUM + 1; i++)
+        (states+si)->stack[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->stack[i]);
+    printf("\n");   
+
 }
 
 void path_keeper(int * path , enum RW rw)
@@ -1592,6 +1600,9 @@ void search(void)
     printf("min_dist is %lf\n", min_dist);
 
     states_keeper(states, 0, WRITE);
+    for(i=0; i<CITY_NUM+1; i++)
+        states[0].stack[i]=NO_CITY;
+    
     states_keeper(states, 1, READ);
     print_state(states, 0);
     print_state(states, 1);
