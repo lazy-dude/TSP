@@ -1620,7 +1620,9 @@ void search(void)
 
     states_keeper(states, 0, WRITE);
     for(i=0; i<CITY_NUM+1; i++)
-        states[0].stack[i]=NO_CITY; // init stack
+        states[0].stack[i]=states[0].vertex[i];
+        //states[0].stack[i]=NO_CITY; // init stack
+    
     /*push(0,states);
     push(2,states);
     push(1,states);
