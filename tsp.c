@@ -1063,9 +1063,10 @@ void remove_repetition(void)
 
 /// ________________________________________________________ ///
 #define MAX_STATES 50 // 1000 25 15 10000
+int g_vertex[CITY_NUM * MAX_NEXT]; // TODO remove global array
 struct st_t
 {
-    int vertex[CITY_NUM * MAX_NEXT]; // TODO maybe extra , only once
+    //int vertex[CITY_NUM * MAX_NEXT]; // TODO maybe extra , only once
     int path[CITY_NUM+1];
     int stack[CITY_NUM+1];
     // uint64_t hash; // TODO sum of all city but NO_CITY
@@ -1097,7 +1098,7 @@ void print_state(st_t *states, int si)
         for(int j = 0; j < MAX_NEXT; j++)
         {
             int index = i * MAX_NEXT + j;
-            int cnum=(states + si)->vertex[index];
+            int cnum=g_vertex[index];
             cnum==NO_CITY? printf("-,"):printf("%d,", cnum);
         }
         printf("\n");
@@ -1147,7 +1148,7 @@ void states_keeper(st_t *states, int si, enum RW rw) // TODO path
     if(rw == READ)
     {
         for(ci = 0; ci < CITY_NUM; ci++)
-            nexts_keeper(&(states + si)->vertex[ci * MAX_NEXT], ci, READ);
+            nexts_keeper(&g_vertex[ci * MAX_NEXT], ci, READ);
         path_keeper((states+si)->path, READ);
     }
     else // WRITE
@@ -1159,7 +1160,7 @@ void states_keeper(st_t *states, int si, enum RW rw) // TODO path
             for(int j = 0; j < MAX_NEXT; j++) 
             {
                 int index = ci * MAX_NEXT + j;
-                (states + si)->vertex[index] = nk[j]; 
+                g_vertex[index] = nk[j]; 
             }
         }
         int pk[CITY_NUM+1];
@@ -1233,26 +1234,26 @@ bool all_passed(int *const path)
     return false;
 }
 
-bool all_nocity(st_t *state)
+bool all_nocity(void)//(st_t *state)
 {
     int i;
     for(i = 0; i < CITY_NUM * MAX_NEXT; i++)
-        if(state->vertex[i] != NO_CITY)
+        if(g_vertex[i] != NO_CITY)
             return false;
     return true;
 }
 /// --- --- --- --- --- --- --- --- --- --- --- --- --- --- ///
 void match(st_t *states,int *si_ptr);
 
-void remove_city(int city, st_t *state)
+void remove_city(int city)//, st_t *state)
 {
     int l;
     
     for( l=0; l<CITY_NUM*MAX_NEXT; l++)
     {
-        if(state->vertex[l]==city )
+        if(g_vertex[l]==city )
         {
-            state->vertex[l]=NO_CITY;
+            g_vertex[l]=NO_CITY;
         }
     }
     
@@ -1265,18 +1266,18 @@ void eliminate(st_t *state)
     for( j=1; (j<CITY_NUM+1) && state->path[j]!=NO_CITY; j++)
         for( l=0; l<CITY_NUM*MAX_NEXT; l++)
         {
-            if(state->vertex[l]==state->path[j] )
-                state->vertex[l]=NO_CITY;
+            if(g_vertex[l]==state->path[j] )
+                g_vertex[l]=NO_CITY;
         }
     
 }
 
-bool equal(st_t* st1_ptr, st_t* st2_ptr)
+bool equal(st_t* st1_ptr, st_t* st2_ptr) // TODO compare path , stack
 {
-    int l;
-    for(l=0; l<CITY_NUM*MAX_NEXT; l++)
-        if(st1_ptr->vertex[l] != st2_ptr->vertex[l])
-            return false;
+    //int l;
+    //for(l=0; l<CITY_NUM*MAX_NEXT; l++)
+      //  if(st1_ptr->vertex[l] != st2_ptr->vertex[l])
+        //    return false;
     if(st1_ptr->step != st2_ptr->step)
     {
         fprintf(stderr,"vertices equal ,steps different:\n"); 
@@ -1306,11 +1307,11 @@ bool on_path(int city, st_t * state)
     }
     return false;
 }
-bool on_state(int city, st_t* state)
+bool on_state(int city)//, st_t* state)
 {
     bool r=false;
     for(int i=0; i<CITY_NUM*MAX_NEXT; i++)
-        if(state->vertex[i]==city)
+        if(g_vertex[i]==city)
             r=true;
     return r;
 }
@@ -1331,7 +1332,7 @@ bool possible_next(int next_city, st_t* state)
     for(j=0; j<MAX_NEXT; j++)
     {
         int index=next_city*MAX_NEXT+j;
-        int city=state->vertex[index];
+        int city=g_vertex[index];
         if(city!=NO_CITY && !on_path(city,state))
             return true;
     }
@@ -1339,7 +1340,7 @@ bool possible_next(int next_city, st_t* state)
 }    
 bool impossible(st_t *state)
 {
-    if(all_nocity(state))
+    if(all_nocity())
         return true;
         
     int i;
@@ -1375,7 +1376,7 @@ bool complement(st_t *state) // TODO use it
     {
         if(on_path(city, state))
             continue;
-        if(on_state(city,state))
+        if(on_state(city))
             continue;
         return false;
     }
@@ -1388,7 +1389,7 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
     st_t save_state=states[si];
     int i;
     
-    while(all_nocity(states + si) && si>0) 
+    while(all_nocity() && si>0) 
         si--;
     
     assert(si>=0);
@@ -1399,7 +1400,7 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
     {
         print_state(states,i);
         //assert(complement(states+i));
-        if(equal_path(states+si,states+i) && !all_nocity(states+i)) // TODO not executed
+        if(equal_path(states+si,states+i) && !all_nocity()) // TODO not executed
         {
             *(states+*si_ptr+1)=*(states+i); // TODO overwrite , hold all states in memory
             print_state(states,i);
@@ -1418,7 +1419,7 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
     }
     for(int l=0; l<CITY_NUM*MAX_NEXT; l++)
     {
-        int city=(states+si)->vertex[l];
+        int city=g_vertex[l];
         if(city!=0 && city!=NO_CITY)
             assert( !on_path( city ,states+si) );
             
@@ -1468,6 +1469,7 @@ bool path_is_full(st_t *state) // TODO distance , etc
     return true;
 }
 //    ======================================    //
+/*
 void step_backward(st_t *states, int* si_ptr)
 {
     int si=*si_ptr;
@@ -1615,7 +1617,7 @@ bool step_forward(st_t *states, int si , GLfloat *min_dist)
     assert((states+si)->step>=0);
     return false;
 }
-
+*/
 void search(void) // Depth first search
 {
     int i,max_i=0;
@@ -1642,7 +1644,7 @@ void search(void) // Depth first search
 
     states_keeper(states, 0, WRITE);
     for(i=0; i<CITY_NUM+1; i++)
-        states[0].stack[i]=states[0].vertex[i];
+        states[0].stack[i]=g_vertex[i];
         //states[0].stack[i]=NO_CITY; // init stack
     
     /*push(0,states);
@@ -1714,7 +1716,7 @@ void search(void) // Depth first search
         
         int top=pop(&states[i]);
         int j;
-        for(j=0; j<=CITY_NUM; j++) // j=0
+        for(j=0; j<=CITY_NUM+1; j++) // j=0
         {
             if((states+i)->path[j]==NO_CITY)
             {
@@ -1731,7 +1733,7 @@ void search(void) // Depth first search
         //int j;
         for(j = 0; j < MAX_NEXT; j++)
         {
-            int ci=(states + i)->vertex[top * MAX_NEXT + j];
+            int ci=g_vertex[top * MAX_NEXT + j];
             bool op=on_path( ci,states+i);
             if( ci != NO_CITY && !op)
                 push(ci,&states[i]);
@@ -1739,7 +1741,7 @@ void search(void) // Depth first search
         if(path_is_full(&states[i]) && states[i].dist<min_dist)
         {
             min_dist=states[i].dist;
-            for( j = 0; j < CITY_NUM + 1; j++)
+            for( j = 0; j <= CITY_NUM + 1; j++)
                 best_path[j] = (states+i)->path[j];
         }
                 
