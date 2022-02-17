@@ -1714,7 +1714,7 @@ void search(void) // Depth first search
         
         int top=pop(&states[i]);
         int j;
-        for(j=1; j<=CITY_NUM; j++) // j=0
+        for(j=0; j<=CITY_NUM; j++) // j=0
         {
             if((states+i)->path[j]==NO_CITY)
             {
@@ -1737,7 +1737,11 @@ void search(void) // Depth first search
                 push(ci,&states[i]);
         }
         if(path_is_full(&states[i]) && states[i].dist<min_dist)
+        {
             min_dist=states[i].dist;
+            for( j = 0; j < CITY_NUM + 1; j++)
+                best_path[j] = (states+i)->path[j];
+        }
                 
         if(stack_is_empty(&states[i]))
         {
