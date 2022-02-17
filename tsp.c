@@ -1065,7 +1065,7 @@ void remove_repetition(void)
 #define MAX_STATES 50 // 1000 25 15 10000
 struct st_t
 {
-    int vertex[CITY_NUM * MAX_NEXT]; 
+    int vertex[CITY_NUM * MAX_NEXT]; // TODO maybe extra , only once
     int path[CITY_NUM+1];
     int stack[CITY_NUM+1];
     // uint64_t hash; // TODO sum of all city but NO_CITY
@@ -1428,10 +1428,15 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
     assert(complement(states+ *si_ptr));
 }
 // ....................................... //
+// https://www.programiz.com/dsa/graph-dfs
 void push(int city, st_t *state)
 {
     assert(state->stack[CITY_NUM]==NO_CITY);
     int i;
+    for(i=0;i<=CITY_NUM; i++) // not already on stack 
+        if(state->stack[i]==city)
+            return;
+        
     for(i=CITY_NUM; i>0; i--)
         state->stack[i]=state->stack[i-1];
     state->stack[0]=city;
@@ -1446,6 +1451,15 @@ int pop(st_t *state)
         state->stack[i-1]=state->stack[i];
     return r;
 }
+bool stack_is_empty(st_t *state)
+{
+    int i;
+    for(i=0; i<=CITY_NUM; i++)
+        if(state->stack[i]!= NO_CITY)
+            return false;
+    return true;
+}
+// bool stack_is_full(st_t *state) // TODO distance , etc
 
 //    ======================================    //
 void step_backward(st_t *states, int* si_ptr)
@@ -1596,7 +1610,7 @@ bool step_forward(st_t *states, int si , GLfloat *min_dist)
     return false;
 }
 
-void search(void)
+void search(void) // Depth first search
 {
     int i,max_i=0;
     
@@ -1651,6 +1665,8 @@ void search(void)
     for(i = 1; i < MAX_STATES; i++) // TODO success forward backward
     {
         states[i] = states[i - 1];
+        if(stack_is_empty(&states[i]))
+            break;
         
         assert(complement(states+i));
         if(i>max_i)
@@ -1658,7 +1674,7 @@ void search(void)
         
         print_state(states, i);
         
-        if(i>=3 && equal(states+i,states+i-2))// TODO idle
+        /*if(i>=3 && equal(states+i,states+i-2))// TODO idle
             for(int j = CITY_NUM ; j >0 ; j--)
             {
                 int cpj=(states+i)->path[j];
@@ -1670,10 +1686,10 @@ void search(void)
                     
                     break;
                 }
-            }
+            }*/
         assert(complement(states+i));
         
-        if(impossible(states+i))
+        /*if(impossible(states+i))
         { 
             step_backward(states, &i);   
         }
@@ -1685,7 +1701,29 @@ void search(void)
                 best_path[j] = (states+i)->path[j];
         }
         
-        assert(complement(states+i));
+        assert(complement(states+i));*/
+        
+        int top=pop(&states[i]);
+        int j;
+        for(j=0; j<=CITY_NUM; j++)
+        {
+            if((states+i)->path[j]==NO_CITY)
+            {
+                (states+i)->path[j]=top;
+                break;
+            }
+            
+        }
+        // TODO step 3:
+        //int j;
+        for(j = 0; j < MAX_NEXT; j++)
+        {
+            int ci=(states + i)->vertex[top * MAX_NEXT + j];
+            bool op=on_path( ci,states+i);
+            if( ci != NO_CITY && !op)
+                push(ci,&states[i]);
+        }
+                
         
     }
     printf("min_dist is %.1lf max_i is %d\n", min_dist,max_i);
