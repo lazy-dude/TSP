@@ -1459,8 +1459,14 @@ bool stack_is_empty(st_t *state)
             return false;
     return true;
 }
-// bool stack_is_full(st_t *state) // TODO distance , etc
-
+bool path_is_full(st_t *state) // TODO distance , etc
+{
+    int i;
+    for(i=0; i<=CITY_NUM; i++)
+        if(state->path[i]==NO_CITY)
+            return false;
+    return true;
+}
 //    ======================================    //
 void step_backward(st_t *states, int* si_ptr)
 {
@@ -1623,8 +1629,10 @@ void search(void) // Depth first search
     distance_keeper(&min_dist, READ);
     int path0[CITY_NUM+1]={NO_CITY};
     path0[0]=0;
+    
     for(i=1; i<CITY_NUM+1; i++)
         path0[i]=NO_CITY;
+    path0[CITY_NUM]=0; // recently added
     path_keeper(path0, WRITE);
     path_keeper(path0,READ);
     print_path(path0);
@@ -1664,9 +1672,10 @@ void search(void) // Depth first search
     // TODO stop on distance cap or any remaining city with no choice
     for(i = 1; i < MAX_STATES; i++) // TODO success forward backward
     {
+        //if(stack_is_empty(&states[i]))
+        //    break;
         states[i] = states[i - 1];
-        if(stack_is_empty(&states[i]))
-            break;
+        
         
         assert(complement(states+i));
         if(i>max_i)
@@ -1705,11 +1714,15 @@ void search(void) // Depth first search
         
         int top=pop(&states[i]);
         int j;
-        for(j=0; j<=CITY_NUM; j++)
+        for(j=1; j<=CITY_NUM; j++) // j=0
         {
             if((states+i)->path[j]==NO_CITY)
             {
                 (states+i)->path[j]=top;
+                city c1,c2;
+                city_info(&c1, top, READ);
+                city_info(&c2, (states+i)->path[j-1], READ);
+                (states+i)->dist += distance(c1,c2);
                 break;
             }
             
@@ -1723,8 +1736,14 @@ void search(void) // Depth first search
             if( ci != NO_CITY && !op)
                 push(ci,&states[i]);
         }
+        if(path_is_full(&states[i]) && states[i].dist<min_dist)
+            min_dist=states[i].dist;
                 
-        
+        if(stack_is_empty(&states[i]))
+        {
+            print_state(states,i);
+            break;
+        }    
     }
     printf("min_dist is %.1lf max_i is %d\n", min_dist,max_i);
     print_path(best_path);
