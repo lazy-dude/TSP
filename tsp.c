@@ -1,6 +1,10 @@
 // Originally from:
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
+//#define NDEBUG
+//#define EXAMPLE_8
+#define EXAMPLE_50
+
 #include <assert.h>
 #include <math.h>
 #include <simple2d.h>
@@ -8,9 +12,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef EXAMPLE_8
 #define xMax 800 
 #define yMax 600 
 #define CITY_NUM 8 // TODO compute it , many random cities.
+#endif
+
+#ifdef EXAMPLE_50
+#define xMax 1000 
+#define yMax 1000
+#define CITY_NUM 50
+#endif
+
 #define ALL_VISITED -1
 #define NOT_OC 0 //-1
 #define LAST_LAYER -1
@@ -67,7 +80,7 @@ void city_info(city *out_c, int cnum, enum RW rw)
 {
     
     assert(correct_index(cnum));
-    static city cities[] = {
+    static city cities[CITY_NUM] = {
         
         {.x = xMax * 0.47,
          .y = yMax * 0.03,
@@ -399,6 +412,8 @@ GLfloat max(GLfloat a, GLfloat b)
 #define MIN_DIFF 5
 bool lines_cross(city c1, city c2, city c3, city c4)
 {
+    //assert(c1.x != c3.x || c1.y != c3.y); // TODO more like this  ?
+    
     
     assert(c2.x != c1.x);
     GLfloat a = (c2.y - c1.y) / (c2.x - c1.x);
@@ -410,7 +425,9 @@ bool lines_cross(city c1, city c2, city c3, city c4)
 
     GLfloat x, y;
     
-    assert(a != c);
+    //assert(a != c); // TODO temporarely removed
+    if(a==c)
+        return true;
     x = (d - b) / (a - c);
     y = (d * a - b * c) / (a - c);
 
@@ -710,7 +727,9 @@ void joints(int cycle)
             oj_cnt++;
         }
     }
-    assert(oj_cnt >= 3);
+    //assert(oj_cnt >= 3); // TODO for now removed
+    if(oj_cnt<=2)
+        return;
 
     if(j_cnt == 0)
         return;
@@ -1049,10 +1068,10 @@ void remove_repetition(void)
     for(i = 0; i < CITY_NUM; i++)
     {
         nexts_keeper(nk, i, READ);
-        for(int j = 0; j < CITY_NUM - 1; j++)
+        for(int j = 0; j < MAX_NEXT - 1; j++)
             if(nk[j] == nk[j + 1] && nk[j] != NO_CITY)
             {
-                for(int k = j; k < CITY_NUM - 1; k++)
+                for(int k = j; k < MAX_NEXT - 1; k++)
                     nk[k] = nk[k + 1];
             }
 
@@ -1469,156 +1488,7 @@ bool path_is_full(st_t *state) // TODO distance , etc
     return true;
 }
 //    ======================================    //
-/*
-void step_backward(st_t *states, int* si_ptr)
-{
-    int si=*si_ptr;
-    assert(si>=0);
-    assert(si<= MAX_STATES);
-    assert((states+si)->step >=0);
-
-    int cc = NO_CITY;
-    int m;
-    assert(complement(states+si));
-    
-    match(states,&si);
-    assert(complement(states+si));
-
-    for(int l = 0; l < CITY_NUM * MAX_NEXT; l++)
-
-        if((states + si)->vertex[l] != NO_CITY)
-        {
-            
-            for(m = CITY_NUM; m >= 1; m--)
-                if((states+si)->path[m] != NO_CITY)
-                    break;
-            
-            cc = (states+si)->path[m];
-            
-            match(states,&si); // TODO without this, fails on complement
-            if(!possible_next(cc,states+si))
-            {
-                
-                (states+si)->path[m]=NO_CITY;// TODO sometimes
-                
-                match(states,&si);
-            }  
-            
-            assert(complement(states+si));
-        }
-    if(cc != NO_CITY ) 
-    {
-        
-        int nk[MAX_NEXT];
-        int n;
-        nexts_keeper(nk, cc, READ); 
-        for(n = 0; n < MAX_NEXT; n++)
-            if(nk[n] != NO_CITY && nk[n] != 0)
-            {
-                nk[n] = NO_CITY;
-                
-            }
-        nexts_keeper(nk, cc, WRITE);
-        
-        for(int j=0; j<CITY_NUM * MAX_NEXT;j++)
-            if((states + si)->vertex[j]==cc)
-                (states + si)->vertex[j]=NO_CITY;
-        
-        match(states,&si);
-        printf("'''step_backward: cc is %d si is %d\n", cc, si);
-        
-    }
-    *si_ptr=si;
-    
-    match(states,&si);
-    assert((states+si)->step >=0);
-    assert(complement(states+si));
-    return ;
-}
-
-bool step_forward(st_t *states, int si , GLfloat *min_dist)
-{
-    int i, j, k, l;
-    int ci=NO_CITY, cc;
-
-    assert(si>=0);
-    assert(si<= MAX_STATES);
-    assert(complement(states+si));
-    assert((states+si)->step >=0);
-
-    for(i = 0; i < CITY_NUM + 1; i++) 
-        if((states+si)->path[i] == NO_CITY)
-        {
-            ci = (states+si)->path[i - 1];
-            
-            break;
-        }
-
-    
-    for(j = 0; j < MAX_NEXT; j++)
-        if((states + si)->vertex[ci * MAX_NEXT + j] != NO_CITY)
-            break; // TODO step back on finish, last 0 or not, dist cap
-    
-    int index = ci * MAX_NEXT + j;
-    cc = (states + si)->vertex[index];
-    if(cc != NO_CITY) 
-    {
-        for(k = 0; k < CITY_NUM + 1; k++)
-
-            if((states+si)->path[k] == NO_CITY)
-            {
-                int m;
-                for(m=0; m<k; m++)
-                    if((states+si)->path[m]==cc)
-                        break;
-                 
-                if(cc==0 && k<CITY_NUM)
-                    continue;
-                
-                (states+si)->path[k] = cc; // TODO do not repeat cc already in path
-
-                for(l = 0; l < CITY_NUM * MAX_NEXT; l++)
-                    if((states + si)->vertex[l] == cc)
-                    {
-
-                        (states + si)->vertex[l] = NO_CITY;
-                        
-                        nexts_keeper(&(states + si)->vertex[l], ci,
-                                     WRITE); 
-                    }
-
-                
-                nexts_keeper(&(states + si)->vertex[index], ci, WRITE);
-                
-                printf("///step_forward: ci is %d cc is %d i is %d\n", ci, cc,i);
-                print_state(states, si);
-                
-                city c_from, c_to;
-                city_info(&c_from, ci, READ);
-                city_info(&c_to, cc, READ);
-                (states + si)->dist += distance(c_from, c_to);
-                (states + si)->step++;
-                
-                remove_city(cc,states+si);
-                
-                if(i == CITY_NUM ) 
-                {
-                    
-                    if((states + si)->dist < *min_dist) // step back
-                        *min_dist = (states + si)->dist;
-                    return true;
-                }
-
-                return false;
-            }
-    }
-    match(states,&si);
-    assert(complement(states+si));
-    assert((states+si)->step>=0);
-    return false;
-}
-*/
-void search(void) // Depth first search
+void dfs_algorithm(void) // Depth first search
 {
     int i,max_i=0;
     
@@ -1813,7 +1683,7 @@ void show_cycle(int on_cycle)
         if(c2.on_cycle != on_cycle)
             continue;
 
-        if(base_i == i || base_i == j || i == j)
+        if(base_i == i /*|| base_i == j || i == j*/)
             continue;
         for(j = i + 1; j < CITY_NUM; j++)
         {
@@ -1938,8 +1808,45 @@ int main(void)
 {
     assert(CITY_NUM >= 3);
 
+#ifdef EXAMPLE_50
+    char *names[CITY_NUM+1]={NULL};
+    int i=0;
+    city cc={.visited = false,
+         .on_cycle = NOT_OC,
+         .joint = NO_CITY,
+         .next_i = ALL_VISITED,
+          };
+    //char name[10];
+    char coord[30];
+    FILE * co_50 = fopen("tsp_coord_50.text","rt");
+	if(!co_50)
+	{
+	    fprintf(stderr,"Err  opening file.\n");
+	    return 1;
+	}
+	while(1)
+	{
+		if(feof(co_50))
+			break;
+		char *p=fgets(coord,30-1,co_50);
+        if(p==NULL)
+            break;
+       sscanf(p,"%f,%f\n",&cc.x,&cc.y);
+       
+       //char name[ENOUGH];//calloc
+       names[i] = malloc(20*sizeof(char));
+       sprintf(names[i], "City_%d", i);
+       cc.name=names[i];
+       
+       city_info(&cc,i,WRITE);
+       i++;
+    }
+	
+	fclose(co_50);
+#endif
+
     const S2D_Color color = {0.9, 0.9, 0.9, 1.0};
-    char *title = "TSP problem"; // graph theory
+    char *title = "TSP problem , graph theory";
     
     GLfloat dis;
     distance_keeper(&dis, READ);
@@ -1947,11 +1854,12 @@ int main(void)
     
     last_draw();
 
+    /*
     int *vertices = calloc(CITY_NUM + 1, sizeof(int)); // TODO static inside a function
     int *vertices2 = calloc(CITY_NUM + 1, sizeof(int));
     
     int vn1, vn2;
-    general_cycle(vertices, &vn1, /*CITY_NUM,*/ 1); // TODO inside a loop
+    general_cycle(vertices, &vn1, 1); // TODO inside a loop
     general_cycle(vertices2, &vn2, 2); 
     
     print_no_cycle();
@@ -1959,8 +1867,21 @@ int main(void)
     joints(2);
 
     pre_search(vertices, vn1);
-    pre_search(vertices2, vn2);
-    search();
+    pre_search(vertices2, vn2);*/
+    int j;
+    int *vertices[MAX_CYCLES+1];
+    for(j=0; j<MAX_CYCLES; j++)
+        vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
+    int vns[MAX_CYCLES+1];
+    for(j=0; j<MAX_CYCLES; j++)
+        general_cycle(vertices[j],&vns[j],j+1);
+    print_no_cycle();
+    //for(j=MAX_CYCLES; j>1; j--)
+    for(j=1; j<MAX_CYCLES; j++)
+        joints(j);
+    
+    
+    dfs_algorithm();
 
     S2D_Window *window = S2D_CreateWindow(title, xMax, yMax, NULL, render, 0 // TODO remove update: NULL
     );
@@ -1970,7 +1891,11 @@ int main(void)
     S2D_Show(window);
 
     S2D_FreeWindow(window);
+    /*
     free(vertices);
-    free(vertices2);
+    free(vertices2);*/
+    for(j=0; j<MAX_CYCLES; j++)
+        free(vertices[j]);
+    
     return 0;
 }
