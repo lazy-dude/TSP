@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-#define EXAMPLE_8
-//#define EXAMPLE_50
+//#define EXAMPLE_8
+#define EXAMPLE_50
 
 #include <assert.h>
 #include <math.h>
@@ -1858,7 +1858,7 @@ int main(void)
     
     last_draw();
 
-    
+    /*
     int *vertices = calloc(CITY_NUM + 1, sizeof(int)); // TODO static inside a function
     int *vertices2 = calloc(CITY_NUM + 1, sizeof(int));
     
@@ -1871,8 +1871,8 @@ int main(void)
     joints(2);
 
     pre_search(vertices, vn1);
-    pre_search(vertices2, vn2);
-    /*int j;
+    pre_search(vertices2, vn2);*/
+    int j;
     int *vertices[MAX_CYCLES+1];
     for(j=0; j<MAX_CYCLES; j++)
         vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
@@ -1883,7 +1883,8 @@ int main(void)
     //for(j=MAX_CYCLES; j>1; j--)
     for(j=1; j<MAX_CYCLES; j++)
         joints(j);
-      */  
+    for(j=0; j<MAX_CYCLES; j++)
+         pre_search(vertices[j],vns[j]);
     
     dfs_algorithm();
 
@@ -1896,10 +1897,10 @@ int main(void)
 
     S2D_FreeWindow(window);
     
-    free(vertices);
-    free(vertices2);
-    //for(j=0; j<MAX_CYCLES; j++)
-       // free(vertices[j]);
+    //free(vertices);
+    //free(vertices2);
+    for(j=0; j<MAX_CYCLES; j++)
+        free(vertices[j]);
     
     return 0;
 }
