@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-//#define EXAMPLE_8
-#define EXAMPLE_50
+#define EXAMPLE_8
+//#define EXAMPLE_50
 
 #include <assert.h>
 #include <math.h>
@@ -689,7 +689,7 @@ void print_joints(int cycle)
     {
         city ci;
         city_info(&ci, i, READ);
-        if(ci.on_cycle == cycle)
+        if(ci.on_cycle == cycle && ci.joint!=NO_CITY)
             printf("vertex[%d] is joint to %d ", i, ci.joint);
     }
 
@@ -712,7 +712,7 @@ void joints(int cycle)
     for(i = 0; i < CITY_NUM; i++)
     {
         city_info(&ci, i, READ);
-        if(ci.on_cycle == cycle)
+        if(ci.on_cycle == cycle && ci.joint==NO_CITY)
         {
             in_joint[j_cnt] = i;
             j_cnt++;
@@ -721,15 +721,19 @@ void joints(int cycle)
     for(i = 0; i < CITY_NUM; i++)
     {
         city_info(&ci, i, READ);
-        if(ci.on_cycle == (cycle - 1))
+        if(ci.on_cycle == (cycle - 1) && ci.joint==NO_CITY)
         {
             out_joint[oj_cnt] = i;
             oj_cnt++;
         }
     }
     //assert(oj_cnt >= 3); // TODO for now removed
+    printf("cycle is %d oj_cnt is %d j_cnt is %d\n",cycle,oj_cnt,j_cnt);
     if(oj_cnt<=2)
+    {
+        
         return;
+    }
 
     if(j_cnt == 0)
         return;
@@ -1854,7 +1858,7 @@ int main(void)
     
     last_draw();
 
-    /*
+    
     int *vertices = calloc(CITY_NUM + 1, sizeof(int)); // TODO static inside a function
     int *vertices2 = calloc(CITY_NUM + 1, sizeof(int));
     
@@ -1867,8 +1871,8 @@ int main(void)
     joints(2);
 
     pre_search(vertices, vn1);
-    pre_search(vertices2, vn2);*/
-    int j;
+    pre_search(vertices2, vn2);
+    /*int j;
     int *vertices[MAX_CYCLES+1];
     for(j=0; j<MAX_CYCLES; j++)
         vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
@@ -1879,7 +1883,7 @@ int main(void)
     //for(j=MAX_CYCLES; j>1; j--)
     for(j=1; j<MAX_CYCLES; j++)
         joints(j);
-    
+      */  
     
     dfs_algorithm();
 
@@ -1891,11 +1895,11 @@ int main(void)
     S2D_Show(window);
 
     S2D_FreeWindow(window);
-    /*
+    
     free(vertices);
-    free(vertices2);*/
-    for(j=0; j<MAX_CYCLES; j++)
-        free(vertices[j]);
+    free(vertices2);
+    //for(j=0; j<MAX_CYCLES; j++)
+       // free(vertices[j]);
     
     return 0;
 }
