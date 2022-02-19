@@ -712,7 +712,7 @@ void joints(int cycle)
     for(i = 0; i < CITY_NUM; i++)
     {
         city_info(&ci, i, READ);
-        if(ci.on_cycle == cycle && ci.joint==NO_CITY)
+        if(ci.on_cycle == cycle )//&& ci.joint==NO_CITY)
         {
             in_joint[j_cnt] = i;
             j_cnt++;
@@ -721,7 +721,7 @@ void joints(int cycle)
     for(i = 0; i < CITY_NUM; i++)
     {
         city_info(&ci, i, READ);
-        if(ci.on_cycle == (cycle - 1) && ci.joint==NO_CITY)
+        if(ci.on_cycle == (cycle - 1) )//&& ci.joint==NO_CITY)
         {
             out_joint[oj_cnt] = i;
             oj_cnt++;
@@ -1453,17 +1453,17 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
 }
 // ....................................... //
 // https://www.programiz.com/dsa/graph-dfs
-void push(int city, st_t *state)
+void push(int ci, st_t *state)
 {
     assert(state->stack[CITY_NUM]==NO_CITY);
     int i;
     for(i=0;i<=CITY_NUM; i++) // not already on stack 
-        if(state->stack[i]==city)
+        if(state->stack[i]==ci)
             return;
         
     for(i=CITY_NUM; i>0; i--)
         state->stack[i]=state->stack[i-1];
-    state->stack[0]=city;
+    state->stack[0]=ci;
 }
 
 int pop(st_t *state)
@@ -1517,16 +1517,19 @@ void dfs_algorithm(void) // Depth first search
     printf("min_dist is %lf\n", min_dist);
 
     states_keeper(states, 0, WRITE);
+    
     for(i=0; i<CITY_NUM+1; i++)
+        states[0].stack[i]=NO_CITY;
+    for(i=0; i<CITY_NUM+1; i++)
+    {
+        if(g_vertex[i]==NO_CITY)
+        {   
+            break;
+        }
         states[0].stack[i]=g_vertex[i];
         //states[0].stack[i]=NO_CITY; // init stack
+    }
     
-    /*push(0,states);
-    push(2,states);
-    push(1,states);
-    pop(states);
-    pop(states);
-    pop(states);*/
     
     states_keeper(states, 1, READ);
     print_state(states, 0);
@@ -1608,9 +1611,13 @@ void dfs_algorithm(void) // Depth first search
         for(j = 0; j < MAX_NEXT; j++)
         {
             int ci=g_vertex[top * MAX_NEXT + j];
+                
             bool op=on_path( ci,states+i);
             if( ci != NO_CITY && !op)
+            {
                 push(ci,&states[i]);
+            }
+                
         }
         if(path_is_full(&states[i]) && states[i].dist<min_dist)
         {
