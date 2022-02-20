@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-//#define EXAMPLE_8
-#define EXAMPLE_50
+#define EXAMPLE_8
+//#define EXAMPLE_50
 
 #include <assert.h>
 #include <math.h>
@@ -1091,7 +1091,8 @@ struct st_t
 {
     //int vertex[CITY_NUM * MAX_NEXT]; // TODO maybe extra , only once
     int path[CITY_NUM+1];
-    int stack[CITY_NUM+1];
+    //int stack[CITY_NUM+1];
+    int queue[CITY_NUM+1];
     // uint64_t hash; // TODO sum of all city but NO_CITY
     int step; // TODO steps in path
     GLfloat dist;
@@ -1134,9 +1135,9 @@ void print_state(st_t *states, int si)
         (states+si)->path[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->path[i]);
     printf("\n");   
     
-    printf("stack: ");
+    printf("queue: ");
     for(i = 0; i < CITY_NUM + 1; i++)
-        (states+si)->stack[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->stack[i]);
+        (states+si)->queue[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->queue[i]);
     printf("\n");   
 
 }
@@ -1330,6 +1331,17 @@ bool on_path(int city, st_t * state)
     }
     return false;
 }
+bool on_queue(int ci, st_t * state)
+{
+    int pi;
+    for(pi=0; pi<CITY_NUM+1; pi++)
+    {
+        if(ci==state->queue[pi])
+            return true;
+    }
+    return false;
+}
+
 bool on_state(int city)//, st_t* state)
 {
     bool r=false;
@@ -1453,7 +1465,7 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
 }
 // ....................................... //
 // https://www.programiz.com/dsa/graph-dfs
-void push(int ci, st_t *state)
+/*void push(int ci, st_t *state)
 {
     assert(state->stack[CITY_NUM]==NO_CITY);
     int i;
@@ -1482,7 +1494,85 @@ bool stack_is_empty(st_t *state)
         if(state->stack[i]!= NO_CITY)
             return false;
     return true;
+}*/
+void enque(int ci, st_t *state)
+{
+    assert(state->queue[CITY_NUM]==NO_CITY);
+    int i;
+    for(i=0;i<=CITY_NUM; i++) // not already on queue 
+        if(state->queue[i]==ci)
+            return;
+        
+    for(i=0; i<CITY_NUM ; i++)
+    {  
+        //state->stack[i]=state->stack[i-1];
+        if(state->queue[i]==NO_CITY )
+            break;
+    }
+    state->queue[i]=ci;
 }
+int deque(st_t *state)
+{
+    
+    int r;
+    int i;
+    for(i=0;i<CITY_NUM;i++)
+    {
+        r=state->queue[i];
+        if( !on_path(r,state) || !on_queue(r,state))
+            continue;
+        if(r==NO_CITY  )
+        {
+            r=state->queue[i-1];
+            break;
+        }
+    }
+          
+    
+        assert(r!=NO_CITY);
+        int j;
+        //int lp;
+       // int flag=0; // bool
+        for(j=0;j<MAX_NEXT; j++)
+        {
+            int index= i*MAX_NEXT+j;
+            //lp=g_vertex[index];//state->path[j];
+            if(g_vertex[index+1]==NO_CITY)
+            {
+                //flag=1;//
+                break;
+            }
+        }
+        
+           // if(/*r==lp&&*/ flag)
+              // break;
+    //}
+    
+    assert(r!= NO_CITY);
+    
+    for(i=1; i<=CITY_NUM ; i++)
+    {
+        if(state->queue[i-1]!=NO_CITY && i==r)
+            continue;
+        if(on_path(i,state) && on_queue(i,state))
+            continue;
+        if(on_queue(r,state))
+            for(j=0;j<=CITY_NUM;j++)
+                state->queue[j]=NO_CITY;
+        state->queue[i-1]=state->queue[i];
+    }
+    assert(!on_path(r,state));
+    return r;
+}
+bool queue_is_empty(st_t *state)
+{
+    int i;
+    for(i=0; i<=CITY_NUM; i++)
+        if(state->queue[i]!= NO_CITY)
+            return false;
+    return true;
+}
+
 bool path_is_full(st_t *state) // TODO distance , etc
 {
     int i;
@@ -1492,8 +1582,8 @@ bool path_is_full(st_t *state) // TODO distance , etc
     return true;
 }
 //    ======================================    //
-void dfs_algorithm(void) // Depth first search
-{
+void bfs_algorithm(void) // TODO use another way to find all solutions
+{// Breadth first search
     int i,max_i=0;
     
     remove_repetition();
@@ -1519,14 +1609,14 @@ void dfs_algorithm(void) // Depth first search
     states_keeper(states, 0, WRITE);
     
     for(i=0; i<CITY_NUM+1; i++)
-        states[0].stack[i]=NO_CITY;
+        states[0].queue[i]=NO_CITY;//stack
     for(i=0; i<CITY_NUM+1; i++)
     {
         if(g_vertex[i]==NO_CITY)
         {   
             break;
         }
-        states[0].stack[i]=g_vertex[i];
+        states[0].queue[i]=g_vertex[i];// stack
         //states[0].stack[i]=NO_CITY; // init stack
     }
     
@@ -1591,7 +1681,7 @@ void dfs_algorithm(void) // Depth first search
         
         assert(complement(states+i));*/
         
-        int top=pop(&states[i]);
+        int top=deque(&states[i]);//pop
         int j;
         for(j=0; j<=CITY_NUM+1; j++) // j=0
         {
@@ -1615,7 +1705,7 @@ void dfs_algorithm(void) // Depth first search
             bool op=on_path( ci,states+i);
             if( ci != NO_CITY && !op)
             {
-                push(ci,&states[i]);
+                enque(ci,&states[i]);//push
             }
                 
         }
@@ -1626,7 +1716,7 @@ void dfs_algorithm(void) // Depth first search
                 best_path[j] = (states+i)->path[j];
         }
                 
-        if(stack_is_empty(&states[i]))
+        if(queue_is_empty(&states[i]))//stack
         {
             print_state(states,i);
             break;
@@ -1893,7 +1983,7 @@ int main(void)
     for(j=0; j<MAX_CYCLES; j++)
          pre_search(vertices[j],vns[j]);
     
-    dfs_algorithm();
+    bfs_algorithm();
 
     S2D_Window *window = S2D_CreateWindow(title, xMax, yMax, NULL, render, 0 // TODO remove update: NULL
     );
