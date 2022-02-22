@@ -4,6 +4,7 @@
 //#define NDEBUG
 #define EXAMPLE_8
 //#define EXAMPLE_50
+#define MAX_STATES 52 // 1000 25 15 10000 50
 
 #include <assert.h>
 #include <math.h>
@@ -1085,7 +1086,7 @@ void remove_repetition(void)
 }
 
 /// ________________________________________________________ ///
-#define MAX_STATES 100 // 1000 25 15 10000 50
+
 int g_vertex[CITY_NUM * MAX_NEXT]; // TODO remove global array
 struct st_t
 {
@@ -1321,15 +1322,19 @@ bool equal_path(st_t* state1, st_t* state2)
     return true;
 }
 
-bool on_path(int city, st_t * state)
+bool on_path(int ci, st_t * state)
 {
+    
     int pi;
     for(pi=0; pi<CITY_NUM+1; pi++)
     {
-        if(city==state->path[pi])
+        if(ci==state->path[pi])
             return true;
     }
-    return false;
+    if(ci==0 && pi==CITY_NUM)
+        return true;
+    else
+        return false;
 }
 bool on_queue(int ci, st_t * state)
 {
@@ -1498,10 +1503,11 @@ bool stack_is_empty(st_t *state)
 void enque(int ci, st_t *state)
 {
     assert(state->queue[CITY_NUM]==NO_CITY);
+    assert(ci != NO_CITY);
     int i;
-    for(i=0;i<=CITY_NUM; i++) // not already on queue 
-        if(state->queue[i]==ci)
-            return;
+    //for(i=0;i<=CITY_NUM; i++) // not already on queue 
+    if( on_queue(ci,state)|| on_path(ci,state))//state->queue[i]==ci
+        return;
         
     /*for(i=0; i<CITY_NUM ; i++)
     {  
@@ -1513,6 +1519,7 @@ void enque(int ci, st_t *state)
     
     for(i=CITY_NUM; i>0; i--)
         state->queue[i]=state->queue[i-1];
+    
     state->queue[0]=ci;
 }
 
@@ -1539,16 +1546,34 @@ int last_path(st_t *state)
     return NO_CITY;
 }
 
+void improve_queue(int extra ,st_t *state) 
+{
+    int i,j ;
+    
+    for(i=0; i<CITY_NUM; i++)
+    {
+        if(state->queue[i]==extra)
+        {
+            state->queue[i]=NO_CITY;
+            for(j=i+1; j<CITY_NUM; j++)
+                state->queue[j-1]=state->queue[j];
+        }
+    }
+}
 int deque(st_t *state) // TODO seems a problem here
 {
+    printf("@@@ entered deque @@@\n");
     print_state(state,0);
     
     int r;
     int i;
     int lp=last_path(state);
-    for(i=0;i<CITY_NUM;i++)
+    //for(i=0;i<CITY_NUM;i++)
+    for(i=CITY_NUM;i>0;i--)
     {
-        r=state->queue[i];
+        r=state->queue[i+1];
+        if(r==NO_CITY)
+            continue;
         
         if( !on_path(r,state) || !on_queue(r,state) )//|| !adj(r,lp)
             continue;
@@ -1556,69 +1581,70 @@ int deque(st_t *state) // TODO seems a problem here
         else//(r==NO_CITY  )
         {
             
-            r=state->queue[i-1];
+            //r=state->queue[i];
             break;
         }
     }
-    while(!adj(r,lp))
+    /*while(!adj(r,lp))
     {
         if(i<=0) // TODO how to make progress ?
         {
-            state->queue[0]=NO_CITY;
-            //deque(state);
+            //state->queue[0]=NO_CITY;
+            
             return NO_CITY;
             //break;
             //exit(1);
         }
-        r=state->queue[i-1];
+        r=state->queue[i];
         i--;
-        
-    }
-    
-    assert(r!=NO_CITY);
-    /*int j,index;
-    //bool flag=false;
-    
-    for(j=0;j<MAX_NEXT; j++)
-    {
-        index= i*MAX_NEXT+j;
-            
-        if(g_vertex[index]==r)
-        {
-            break;
-        }
     }*/
-    int j;
+    r=state->queue[i];
+    printf("i is %d , r is %d\n",i,r);
+    assert(r!=NO_CITY);
+    
+    int j=0;
     
     assert(r!= NO_CITY);
     
-    for(i=1; i<=CITY_NUM ; i++)
+    /*for(i=1; i<=CITY_NUM ; i++)
     {
         if(state->queue[i-1]!=NO_CITY )
             continue;
         if(on_path(i,state) && on_queue(i,state))
             continue;
         
-        for(j=CITY_NUM; j>=0;j--)
+        for(j=CITY_NUM; j>=i;j--)
         {
             if(on_queue(r,state) &&state->queue[j]==r )
             {
-                state->queue[j]=NO_CITY;
+                state->queue[j]=NO_CITY;       
+            }   
+        }
+        state->queue[i-1]=state->queue[i];
+    }*/
+    printf("r is %d i is %d j is %d lp is %d\n",r,i,j,lp);
+    
+    /*for(i=0; i<CITY_NUM; i++)
+    {
+        if(state->queue[i]==r)
+        {
+            state->queue[i]=NO_CITY; 
+            for(j=CITY_NUM; j>0; j--)
+            {
+                //state->queue[j-1]=state->queue[j];
                 
             }
             
         }
-        
-        state->queue[i-1]=state->queue[i];
-    }
-    printf("r is %d i is %d j is %d lp is %d\n",r,i,j,lp);
+    }*/
     
-    if(state->queue[0]==NO_CITY)
-        for(i=1; i<=CITY_NUM ; i++)
-            state->queue[i-1]=state->queue[i];
+    //if(state->queue[0]==NO_CITY)
+      //  for(i=1; i<=CITY_NUM ; i++)
+        //    state->queue[i-1]=state->queue[i];
+    improve_queue(r,state);
     assert(!on_path(r,state));
     print_state(state,0);
-    
+    printf("@@@ leaving deque @@@\n");
     //exit(1);
     return r;
 }
@@ -1656,12 +1682,12 @@ void bfs_algorithm(void) // TODO use another way to find all solutions
     
     for(i=1; i<CITY_NUM+1; i++)
         path0[i]=NO_CITY;
-    path0[CITY_NUM]=0; // recently added
+    path0[CITY_NUM]=0;//0; // recently added
     path_keeper(path0, WRITE);
     path_keeper(path0,READ);
     print_path(path0);
 
-    printf("++++++++++++++++++++++++++++++++++++++++\n");
+    printf("++++++++++++++++++++++++++++++++++++++++ ++++++++++++++++++++++++++++++++++++++++\n");
     printf("min_dist is %lf\n", min_dist);
 
     states_keeper(states, 0, WRITE);
@@ -1790,7 +1816,8 @@ void bfs_algorithm(void) // TODO use another way to find all solutions
                 best_path[j] = (states+i)->path[j];
         }
                 
-        if(queue_is_empty(&states[i]))//stack
+        //if(queue_is_empty(&states[i]))//stack
+        if(path_is_full(states+i)) // TODO stop at same path repetition
         {
             print_state(states,i);
             break;
