@@ -1085,7 +1085,7 @@ void remove_repetition(void)
 }
 
 /// ________________________________________________________ ///
-#define MAX_STATES 50 // 1000 25 15 10000
+#define MAX_STATES 100 // 1000 25 15 10000 50
 int g_vertex[CITY_NUM * MAX_NEXT]; // TODO remove global array
 struct st_t
 {
@@ -1503,65 +1503,123 @@ void enque(int ci, st_t *state)
         if(state->queue[i]==ci)
             return;
         
-    for(i=0; i<CITY_NUM ; i++)
+    /*for(i=0; i<CITY_NUM ; i++)
     {  
         //state->stack[i]=state->stack[i-1];
         if(state->queue[i]==NO_CITY )
             break;
     }
-    state->queue[i]=ci;
+    state->queue[i]=ci;*/
+    
+    for(i=CITY_NUM; i>0; i--)
+        state->queue[i]=state->queue[i-1];
+    state->queue[0]=ci;
 }
-int deque(st_t *state)
+
+bool adj(int r, int ind)
 {
+    if(r==NO_CITY || ind==NO_CITY)
+        return true;
+    int j;
+    
+    for(j=0; j<MAX_NEXT; j++)
+    {
+        int gvj=g_vertex[ind*MAX_NEXT+j];
+        if(r==gvj)
+            return true;
+    }
+    return false;
+}
+int last_path(st_t *state)
+{
+    int i;
+    for(i=0; i<CITY_NUM; i++)
+        if(state->path[i+1]==NO_CITY)
+            return state->path[i];
+    return NO_CITY;
+}
+
+int deque(st_t *state) // TODO seems a problem here
+{
+    print_state(state,0);
     
     int r;
     int i;
+    int lp=last_path(state);
     for(i=0;i<CITY_NUM;i++)
     {
         r=state->queue[i];
-        if( !on_path(r,state) || !on_queue(r,state))
+        
+        if( !on_path(r,state) || !on_queue(r,state) )//|| !adj(r,lp)
             continue;
-        if(r==NO_CITY  )
+            
+        else//(r==NO_CITY  )
         {
+            
             r=state->queue[i-1];
             break;
         }
     }
-          
-    
-        assert(r!=NO_CITY);
-        int j;
-        //int lp;
-       // int flag=0; // bool
-        for(j=0;j<MAX_NEXT; j++)
+    while(!adj(r,lp))
+    {
+        if(i<=0) // TODO how to make progress ?
         {
-            int index= i*MAX_NEXT+j;
-            //lp=g_vertex[index];//state->path[j];
-            if(g_vertex[index+1]==NO_CITY)
-            {
-                //flag=1;//
-                break;
-            }
+            state->queue[0]=NO_CITY;
+            //deque(state);
+            return NO_CITY;
+            //break;
+            //exit(1);
         }
+        r=state->queue[i-1];
+        i--;
         
-           // if(/*r==lp&&*/ flag)
-              // break;
-    //}
+    }
+    
+    assert(r!=NO_CITY);
+    /*int j,index;
+    //bool flag=false;
+    
+    for(j=0;j<MAX_NEXT; j++)
+    {
+        index= i*MAX_NEXT+j;
+            
+        if(g_vertex[index]==r)
+        {
+            break;
+        }
+    }*/
+    int j;
     
     assert(r!= NO_CITY);
     
     for(i=1; i<=CITY_NUM ; i++)
     {
-        if(state->queue[i-1]!=NO_CITY && i==r)
+        if(state->queue[i-1]!=NO_CITY )
             continue;
         if(on_path(i,state) && on_queue(i,state))
             continue;
-        if(on_queue(r,state))
-            for(j=0;j<=CITY_NUM;j++)
+        
+        for(j=CITY_NUM; j>=0;j--)
+        {
+            if(on_queue(r,state) &&state->queue[j]==r )
+            {
                 state->queue[j]=NO_CITY;
+                
+            }
+            
+        }
+        
         state->queue[i-1]=state->queue[i];
     }
+    printf("r is %d i is %d j is %d lp is %d\n",r,i,j,lp);
+    
+    if(state->queue[0]==NO_CITY)
+        for(i=1; i<=CITY_NUM ; i++)
+            state->queue[i-1]=state->queue[i];
     assert(!on_path(r,state));
+    print_state(state,0);
+    
+    //exit(1);
     return r;
 }
 bool queue_is_empty(st_t *state)
@@ -1682,6 +1740,22 @@ void bfs_algorithm(void) // TODO use another way to find all solutions
         assert(complement(states+i));*/
         
         int top=deque(&states[i]);//pop
+        if(top==NO_CITY) // TODO somehow go back and continue from there
+        {
+            //i--;
+            int lp=last_path(states+i);
+            //enque(lp,states+i);
+            
+            //(states+i)->queue[0]=NO_CITY;
+            //(states+i)->queue[1]=NO_CITY;
+            int q0=(states+i)->queue[0];
+            while(!adj(q0,lp))
+                i--;
+            if(i<=0)
+                break;
+            continue;
+            //break;
+        }
         int j;
         for(j=0; j<=CITY_NUM+1; j++) // j=0
         {
