@@ -4,6 +4,7 @@
 //#define NDEBUG
 #define EXAMPLE_8
 //#define EXAMPLE_50
+
 #define MAX_STATES 52 // 1000 25 15 10000 50
 
 #include <assert.h>
@@ -1093,10 +1094,13 @@ struct st_t
     //int vertex[CITY_NUM * MAX_NEXT]; // TODO maybe extra , only once
     int path[CITY_NUM+1];
     //int stack[CITY_NUM+1];
-    int queue[CITY_NUM+1];
-    // uint64_t hash; // TODO sum of all city but NO_CITY
+    //int queue[CITY_NUM+1];
+    int open[CITY_NUM+1];
+    
     int step; // TODO steps in path
-    GLfloat dist;
+    GLfloat g; // g dist
+    GLfloat h;
+    GLfloat f;
 };
 typedef struct st_t st_t;
 
@@ -1113,8 +1117,8 @@ void print_state(st_t *states, int si)
 {
     int i;
     printf("======\n");
-    printf("si is %d , dist is %.1lf step is %d\n"
-        , si, (states + si)->dist,(states + si)->step);
+    printf("si is %d , f is %.1lf step is %d\n"
+        , si, (states + si)->f,(states + si)->step);
     
     for(i = 0; i < CITY_NUM; i++)
     {
@@ -1136,9 +1140,9 @@ void print_state(st_t *states, int si)
         (states+si)->path[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->path[i]);
     printf("\n");   
     
-    printf("queue: ");
+    printf("open : ");
     for(i = 0; i < CITY_NUM + 1; i++)
-        (states+si)->queue[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->queue[i]);
+        (states+si)->open[i]==NO_CITY ? printf("- "):printf("%d ", (states+si)->open[i]);
     printf("\n");   
 
 }
@@ -1164,17 +1168,29 @@ void path_keeper(int * path , enum RW rw)
     // TODO FREE
     return;
 }
-void states_keeper(st_t *states, int si, enum RW rw) // TODO path
+
+
+void states_keeper(st_t *state, enum RW rw) // TODO path
 {
-    int ci;
+    //int ci;
+    static st_t sk={0};
     
-    assert(si >= 0);
-    assert(si < MAX_STATES);
-    if(rw == READ)
+    if(rw==READ)
+    {
+        *state=sk;
+    }
+    else // WRITE
+    {
+        sk=*state;
+    }
+    
+    //assert(si >= 0);
+    //assert(si < MAX_STATES);
+    /*if(rw == READ)
     {
         for(ci = 0; ci < CITY_NUM; ci++)
             nexts_keeper(&g_vertex[ci * MAX_NEXT], ci, READ);
-        path_keeper((states+si)->path, READ);
+        path_keeper((state)->path, READ);
     }
     else // WRITE
     {
@@ -1188,13 +1204,13 @@ void states_keeper(st_t *states, int si, enum RW rw) // TODO path
                 g_vertex[index] = nk[j]; 
             }
         }
-        int pk[CITY_NUM+1];
-        path_keeper(pk,READ);
+        //int pk[CITY_NUM+1];
+        //path_keeper(pk,READ);
         
-        for(int j=0; j<CITY_NUM+1; j++)
-            (states + si)->path[j]=pk[j];
-        path_keeper((states+si)->path, WRITE);
-    }
+        //for(int j=0; j<CITY_NUM+1; j++)
+          //  (state)->path[j]=pk[j];
+        path_keeper((state)->path, WRITE);
+    }*/
     return;
 }
 // TODO expand
@@ -1336,12 +1352,12 @@ bool on_path(int ci, st_t * state)
     else
         return false;
 }
-bool on_queue(int ci, st_t * state)
+bool on_open(int ci, st_t * state)
 {
     int pi;
     for(pi=0; pi<CITY_NUM+1; pi++)
     {
-        if(ci==state->queue[pi])
+        if(ci==state->open[pi])
             return true;
     }
     return false;
@@ -1500,13 +1516,24 @@ bool stack_is_empty(st_t *state)
             return false;
     return true;
 }*/
+int last_path(st_t *state)
+{
+    int i;
+    for(i=0; i<CITY_NUM; i++)
+        if(state->path[i+1]==NO_CITY)
+            return state->path[i];
+    return NO_CITY;
+}
+
 void enque(int ci, st_t *state)
 {
-    assert(state->queue[CITY_NUM]==NO_CITY);
+    printf("---- entered enque ----\n");
+    assert(state->open[CITY_NUM]==NO_CITY);
     assert(ci != NO_CITY);
+    int lp = last_path(state);
     int i;
     //for(i=0;i<=CITY_NUM; i++) // not already on queue 
-    if( on_queue(ci,state)|| on_path(ci,state))//state->queue[i]==ci
+    if( on_open(ci,state)|| on_path(ci,state))//state->queue[i]==ci
         return;
         
     /*for(i=0; i<CITY_NUM ; i++)
@@ -1517,10 +1544,23 @@ void enque(int ci, st_t *state)
     }
     state->queue[i]=ci;*/
     
-    for(i=CITY_NUM; i>0; i--)
-        state->queue[i]=state->queue[i-1];
+    /*for(i=CITY_NUM; i>0; i--)
+        state->open[i]=state->open[i-1];
+    state->open[0]=ci;*/
+    for(i=0; i<CITY_NUM; i++)
+        if(state->path[i]==NO_CITY)
+            break;
+    state->path[i]=ci;
     
-    state->queue[0]=ci;
+    city c1,c2;
+    city_info(&c1,lp,READ);
+    city_info(&c2,ci,READ);
+    state->g += distance(c1,c2);
+    
+    states_keeper(state,WRITE);
+    print_state(state,0);
+    printf("ci is %d\n",ci);
+    printf("---- leave enque ----\n");
 }
 
 bool adj(int r, int ind)
@@ -1537,29 +1577,135 @@ bool adj(int r, int ind)
     }
     return false;
 }
-int last_path(st_t *state)
-{
-    int i;
-    for(i=0; i<CITY_NUM; i++)
-        if(state->path[i+1]==NO_CITY)
-            return state->path[i];
-    return NO_CITY;
-}
 
-void improve_queue(int extra ,st_t *state) 
+void improve_open(int extra ,st_t *state) 
 {
     int i,j ;
     
     for(i=0; i<CITY_NUM; i++)
     {
-        if(state->queue[i]==extra)
+        if(state->open[i]==extra)
         {
-            state->queue[i]=NO_CITY;
+            state->open[i]=NO_CITY;
             for(j=i+1; j<CITY_NUM; j++)
-                state->queue[j-1]=state->queue[j];
+                state->open[j-1]=state->open[j];
         }
     }
 }
+/*GLfloat h(int ci) // TODO try other heuristics
+{
+    if(ci==NO_CITY)
+        return xMax+yMax;//-10
+    city cc,c0;
+    city_info(&cc, ci, READ);
+    city_info(&c0, 0, READ);
+    GLfloat dist=distance(cc,c0);
+    return dist;
+    
+}*/
+/*GLfloat g(st_t const * const state)
+{
+    return state->g;
+}
+GLfloat f(st_t const * const state)
+{
+    return state->f;//g(state)+h(ci);
+}*/
+
+int compare(const void* a, const void* b)
+{
+    int arg1 = *(int*)a;
+    int arg2 = *(int*)b;
+ 
+    if(arg1==NO_CITY || arg2==NO_CITY)
+        return 0;
+    assert(arg1 != arg2);
+ 
+    GLfloat f1;//=xMax+yMax;//= .f;
+    GLfloat f2;//=xMax+yMax;
+    st_t state_i;
+    //states_keeper(&state0, 0, READ);
+    city c0,c1,c2;
+    city_info(&c0,0,READ);
+    city_info(&c1,arg1,READ);
+    city_info(&c2,arg2,READ);
+    
+    //int i;
+    //for(i=0; i<MAX_STATES; i++)
+    {
+        //states_keeper(&state_i, i, READ);
+        states_keeper(&state_i, READ);
+        GLfloat g=state_i.g;
+        int lp=last_path(&state_i);
+        
+        city lc;
+        city_info(&lc,lp,READ);
+        GLfloat g1 = g+distance(lc,c1);
+        GLfloat g2 = g+distance(lc,c2);
+        
+        GLfloat h1= distance(c1,c0); // TODO better h ?
+        GLfloat h2= distance(c2,c0);
+        
+        f1=g1+h1;
+        f2=g2+h2;
+        /*if(lp==arg1)
+            f1=state_i.f;
+        if(lp==arg2)
+            f2=state_i.f;*/
+    }
+    
+    //printf("compare %d %d f1 is %.1f f2 is %.1f\n" ,arg1,arg2,f1,f2);
+    if (f1 < f2) return -1;
+    if (f1 > f2) return 1;
+    return 0;
+    /*
+    if(arg1.dist<arg2.dist) return -1;
+    if(arg1.dist>arg1.dist) return 1;
+    return 0;*/
+} 
+void sort_open(st_t * state)
+{
+    printf("++++ entered sort_open ++++\n");
+    print_state(state,0);
+    //GLfloat f_x[CITY_NUM+1];
+    int i;
+    //for(i=0; i<CITY_NUM+1; i++)
+        //f_x[i]=f(state,state->open[i]);
+    int open[CITY_NUM+1];
+    for(i=0; i<CITY_NUM+1; i++)
+        open[i]=state->open[i];
+        
+    qsort(open, CITY_NUM+1, sizeof(int), compare);
+    
+    
+    for( i=0; i<CITY_NUM+1; i++)
+    {
+        //printf("%.1f ",state->f);//f(state,state->open[i]));
+        state->open[i]=open[i];
+    }
+    //states_keeper(state, 0, WRITE);
+    print_state(state,0);
+    printf("++++ leave sort_open ++++\n");
+    //exit(1);
+}
+void fill_open(st_t *state,int ind)
+{
+    if(ind==0)
+        return;
+    int j=0;
+    int k;
+    while(state->open[j]!=NO_CITY)
+        j++;
+    for(k=j; (k<CITY_NUM); k++)
+    {
+        int gv=g_vertex[ind*MAX_NEXT+k-j];
+        if(on_path(gv,state)|| on_open(gv,state))
+            continue;
+        state->open[k]=gv;
+    }
+    
+}
+
 int deque(st_t *state) // TODO seems a problem here
 {
     printf("@@@ entered deque @@@\n");
@@ -1568,26 +1714,31 @@ int deque(st_t *state) // TODO seems a problem here
     int r;
     int i;
     int lp=last_path(state);
+    //GLfloat f_x=xMax+yMax;
     //for(i=0;i<CITY_NUM;i++)
-    for(i=CITY_NUM;i>0;i--)
+    fill_open(state,lp);
+    sort_open(state);
+    //for(i=CITY_NUM;i>0;i--)
+    for(i=0;i<CITY_NUM;i++)
     {
-        r=state->queue[i+1];
+        r=state->open[i];
         if(r==NO_CITY)
             continue;
         
-        if( !on_path(r,state) || !on_queue(r,state) )//|| !adj(r,lp)
+        if( on_path(r,state) /*|| on_open(r,state)*/|| !adj(r,lp) )//|| !adj(r,lp)
             continue;
             
         else//(r==NO_CITY  )
         {
             
-            //r=state->queue[i];
+            r=state->open[i];
             break;
         }
     }
+    //i=0;
     /*while(!adj(r,lp))
     {
-        if(i<=0) // TODO how to make progress ?
+        if(i>CITY_NUM) // TODO how to make progress ?
         {
             //state->queue[0]=NO_CITY;
             
@@ -1595,14 +1746,39 @@ int deque(st_t *state) // TODO seems a problem here
             //break;
             //exit(1);
         }
-        r=state->queue[i];
-        i--;
+        r=state->open[i];
+        i++;
     }*/
-    r=state->queue[i];
+    //r=state->open[i];
+    int j=0;
     printf("i is %d , r is %d\n",i,r);
+    /*if(r==NO_CITY) // TODO go back , eliminate last choice , continue 
+    {
+        //state->path[6]=NO_CITY;
+        //state->open[0]=NO_CITY;
+        //lp = last_path(state);
+         //state--;
+         st_t os;
+         states_keeper(&os,0,READ);
+        
+        improve_open(lp,state);
+        for(j=0; j<CITY_NUM; j++)
+            if(os.path[j]==lp)
+                os.path[j]=NO_CITY;
+        //int lp2=last_path(&os);
+        //fill_open(&os,lp2);
+        //sort_open(&os);
+        
+        states_keeper(&os,0,WRITE);
+        print_state(&os,0);
+        exit(1);
+        //deque(state);
+        //int ci=state->open[0];
+        //enque(lp2,state);
+    }*/
     assert(r!=NO_CITY);
     
-    int j=0;
+    j=0;
     
     assert(r!= NO_CITY);
     
@@ -1641,8 +1817,10 @@ int deque(st_t *state) // TODO seems a problem here
     //if(state->queue[0]==NO_CITY)
       //  for(i=1; i<=CITY_NUM ; i++)
         //    state->queue[i-1]=state->queue[i];
-    improve_queue(r,state);
+    improve_open(r,state);
     assert(!on_path(r,state));
+    
+    states_keeper(state,WRITE);
     print_state(state,0);
     printf("@@@ leaving deque @@@\n");
     //exit(1);
@@ -1652,7 +1830,7 @@ bool queue_is_empty(st_t *state)
 {
     int i;
     for(i=0; i<=CITY_NUM; i++)
-        if(state->queue[i]!= NO_CITY)
+        if(state->open[i]!= NO_CITY)
             return false;
     return true;
 }
@@ -1665,8 +1843,47 @@ bool path_is_full(st_t *state) // TODO distance , etc
             return false;
     return true;
 }
+st_t init(void)
+{
+    st_t state={0};
+    int ci;
+    int nk[MAX_NEXT]; 
+    int i;
+    
+    state.path[0]=0;
+    for(i=1; i<CITY_NUM+1; i++)
+    {
+        state.path[i]=NO_CITY;
+        state.open[i]=NO_CITY;
+    }
+    state.path[CITY_NUM]=0;
+    
+    
+    
+    for(ci = 0; ci < CITY_NUM; ci++)
+    {
+        nexts_keeper(nk, ci, READ);
+        for(int j = 0; j < MAX_NEXT; j++) 
+        {
+            int index = ci * MAX_NEXT + j;
+            g_vertex[index] = nk[j]; 
+        }
+    }
+    
+    for(i=0; i<CITY_NUM; i++)
+        state.open[i]=g_vertex[i];
+        
+        //int pk[CITY_NUM+1];
+        //path_keeper(pk,READ);
+        
+        //for(int j=0; j<CITY_NUM+1; j++)
+          //  (state)->path[j]=pk[j];
+    path_keeper((state).path, WRITE);
+    return state;
+}
+
 //    ======================================    //
-void bfs_algorithm(void) // TODO use another way to find all solutions
+void A_star_algorithm(void) // TODO use another way to find all solutions
 {// Breadth first search
     int i,max_i=0;
     
@@ -1690,24 +1907,25 @@ void bfs_algorithm(void) // TODO use another way to find all solutions
     printf("++++++++++++++++++++++++++++++++++++++++ ++++++++++++++++++++++++++++++++++++++++\n");
     printf("min_dist is %lf\n", min_dist);
 
-    states_keeper(states, 0, WRITE);
+    *states=init();
+    states_keeper(states, WRITE);
     
     for(i=0; i<CITY_NUM+1; i++)
-        states[0].queue[i]=NO_CITY;//stack
+        states[0].open[i]=NO_CITY;//stack
     for(i=0; i<CITY_NUM+1; i++)
     {
         if(g_vertex[i]==NO_CITY)
         {   
             break;
         }
-        states[0].queue[i]=g_vertex[i];// stack
+        states[0].open[i]=g_vertex[i];// stack
         //states[0].stack[i]=NO_CITY; // init stack
     }
     
     
-    states_keeper(states, 1, READ);
+    states_keeper(states, READ);
     print_state(states, 0);
-    print_state(states, 1);
+    //print_state(states, 1);
     
     int *best_path = calloc(CITY_NUM + 1, sizeof(int));
     int next = 0;
@@ -1774,7 +1992,7 @@ void bfs_algorithm(void) // TODO use another way to find all solutions
             
             //(states+i)->queue[0]=NO_CITY;
             //(states+i)->queue[1]=NO_CITY;
-            int q0=(states+i)->queue[0];
+            int q0=(states+i)->open[0];
             while(!adj(q0,lp))
                 i--;
             if(i<=0)
@@ -1783,7 +2001,7 @@ void bfs_algorithm(void) // TODO use another way to find all solutions
             //break;
         }
         int j;
-        for(j=0; j<=CITY_NUM+1; j++) // j=0
+        /*for(j=0; j<=CITY_NUM+1; j++) // j=0
         {
             if((states+i)->path[j]==NO_CITY)
             {
@@ -1791,33 +2009,40 @@ void bfs_algorithm(void) // TODO use another way to find all solutions
                 city c1,c2;
                 city_info(&c1, top, READ);
                 city_info(&c2, (states+i)->path[j-1], READ);
-                (states+i)->dist += distance(c1,c2);
+                (states+i)->g += distance(c1,c2);
+                city c0;
+                city_info(&c0,0,READ);
+                (states+i)->h = distance(c0,c2);// TODO better heuristic
+                (states+i)->f=(states+i)->g+(states+i)->h;
                 break;
             }
             
-        }
+        }*/
         // TODO step 3:
         //int j;
         for(j = 0; j < MAX_NEXT; j++)
         {
             int ci=g_vertex[top * MAX_NEXT + j];
+            ci=top;
                 
             bool op=on_path( ci,states+i);
             if( ci != NO_CITY && !op)
             {
                 enque(ci,&states[i]);//push
+                
+                //exit(1);
             }
                 
         }
-        if(path_is_full(&states[i]) && states[i].dist<min_dist)
+        if(path_is_full(&states[i]) && states[i].g<min_dist)
         {
-            min_dist=states[i].dist;
+            min_dist=states[i].g;
             for( j = 0; j <= CITY_NUM + 1; j++)
                 best_path[j] = (states+i)->path[j];
         }
                 
         //if(queue_is_empty(&states[i]))//stack
-        if(path_is_full(states+i)) // TODO stop at same path repetition
+        if(path_is_full(states+i)   ) // TODO stop at same path repetition
         {
             print_state(states,i);
             break;
@@ -2084,7 +2309,7 @@ int main(void)
     for(j=0; j<MAX_CYCLES; j++)
          pre_search(vertices[j],vns[j]);
     
-    bfs_algorithm();
+    A_star_algorithm();
 
     S2D_Window *window = S2D_CreateWindow(title, xMax, yMax, NULL, render, 0 // TODO remove update: NULL
     );
