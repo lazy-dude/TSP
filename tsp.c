@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-#define EXAMPLE_8
-//#define EXAMPLE_50
+//#define EXAMPLE_8
+#define EXAMPLE_50
 
 #define MAX_STATES 52 // 1000 25 15 10000 50
 
@@ -1486,7 +1486,7 @@ void match(st_t *states,int *si_ptr) // TODO ongoing
 }*/
 
 // ....................................... //
-// https://www.programiz.com/dsa/graph-dfs
+
 /*void push(int ci, st_t *state)
 {
     assert(state->stack[CITY_NUM]==NO_CITY);
@@ -1697,7 +1697,7 @@ void fill_open(st_t * state_ptr,int ind)
     int k;
     while(state_ptr->open[j]!=NO_CITY)
         j++;
-    for(k=j; (k<CITY_NUM); k++)
+    for(k=j; (k<MAX_NEXT); k++)//CITY_NUM
     {
         int gv=g_vertex[ind*MAX_NEXT+k-j];
         if(on_path(gv,state_ptr)|| on_open(gv,state_ptr))
@@ -1705,6 +1705,20 @@ void fill_open(st_t * state_ptr,int ind)
         state_ptr->open[k]=gv;
     }
     
+}
+void neat_open(st_t * state_ptr)
+{
+    int i,j;
+    for(i=0; i<CITY_NUM; i++)
+        if(state_ptr->open[i]==NO_CITY )//&&  state_ptr->open[i]!=0
+            for(j=i+1; j<=CITY_NUM ; j++)
+            //for(j=CITY_NUM; j>0 ; j--)
+                if(state_ptr->open[j]!=NO_CITY )//&& state_ptr->open[j]!=0
+                {
+                    state_ptr->open[i]=state_ptr->open[j];
+                    state_ptr->open[j]=NO_CITY;
+                    break;
+                }
 }
 
 int banish(st_t * state_ptr) // TODO seems a problem here
@@ -1718,6 +1732,7 @@ int banish(st_t * state_ptr) // TODO seems a problem here
     //GLfloat f_x=xMax+yMax;
     //for(i=0;i<CITY_NUM;i++)
     fill_open(state_ptr,lp);
+    neat_open(state_ptr);
     sort_open(state_ptr);
     //for(i=CITY_NUM;i>0;i--)
     for(i=0;i<CITY_NUM;i++)
@@ -1859,8 +1874,6 @@ st_t init(void)
     }
     state.path[CITY_NUM]=0;
     
-    
-    
     for(ci = 0; ci < CITY_NUM; ci++)
     {
         nexts_keeper(nk, ci, READ);
@@ -1871,7 +1884,7 @@ st_t init(void)
         }
     }
     
-    for(i=0; i<CITY_NUM; i++)
+    for(i=0; i<MAX_NEXT; i++)
         state.open[i]=g_vertex[i];
         
         //int pk[CITY_NUM+1];
