@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-#define EXAMPLE_8
-//#define EXAMPLE_50
+//#define EXAMPLE_8
+#define EXAMPLE_50
 
 #define MAX_STATES 52 // 1000 25 15 10000 50
 
@@ -1895,7 +1895,7 @@ st_t init(void)
         }
     }
     
-    for(i=0; i<CITY_NUM+1; i++)
+    for(i=0; i<MAX_NEXT-1; i++)
         state.open[i]=g_vertex[i];
         
         //int pk[CITY_NUM+1];
@@ -1911,11 +1911,12 @@ st_t init(void)
 void A_star_algorithm(void) // TODO use another way to find all solutions
 {// Breadth first search
     int i,max_i=0;
+    int best_changed=0;
     
     remove_repetition();
     print_keeper();
 
-    //st_t *all_states = calloc(MAX_STATES+1, sizeof(st_t)); // TODO single state ?
+    st_t *all_states = calloc(MAX_STATES+1, sizeof(st_t)); // TODO single state ?
     st_t *state_ptr = calloc(1, sizeof(st_t));
     
     GLfloat min_dist;
@@ -1952,6 +1953,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     states_keeper(state_ptr, READ);
     print_state(state_ptr);
     //print_state(states, 1);
+    all_states[0]=*state_ptr;
     
     int *best_path = calloc(CITY_NUM + 1, sizeof(int));
     int next = 0;
@@ -1973,7 +1975,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         //if(stack_is_empty(&states[i]))
         //    break;
         //states[i] = states[i - 1];
-        
+        all_states[i]=*state_ptr;
         
         assert(complement(state_ptr));
         if(i>max_i)
@@ -2010,8 +2012,14 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
         assert(complement(states+i));*/
         
-        int top=banish(state_ptr);//pop
-        if(top==NO_CITY) // TODO somehow go back and continue from there
+        int top=NO_CITY;
+        //if(state_ptr->path[1]==NO_CITY)// && 
+            
+        //else
+        //if(state_ptr->path[1]!=NO_CITY)
+            top=banish(state_ptr);//pop
+        if(top==NO_CITY ) // TODO somehow go back and continue from there
+        //if(0)
         {
             //i--;
             int lp=last_path(state_ptr);
@@ -2064,6 +2072,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         }
         if(path_is_full(state_ptr) && state_ptr->g<min_dist)
         {
+            best_changed++;
             min_dist=state_ptr->g;
             for( j = 0; j < CITY_NUM + 1; j++)
                 best_path[j] = (state_ptr)->path[j];
@@ -2071,12 +2080,21 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
         if(open_is_empty(state_ptr)) // TODO how to continue for more solutions ?
         {
+            int lp=last_path(state_ptr);
+            while(open_is_empty(all_states+i))
+                i--;
+            assert(i>=0);
+            improve_open(lp,all_states+i);
+            assert(!open_is_empty(all_states+i));
+            *state_ptr=all_states[i];
+            print_state(state_ptr);
+        
             //int top=banish(state_ptr);
-            int bl=state_ptr->path[CITY_NUM-1];
+            /*int bl=state_ptr->path[CITY_NUM-1];
             state_ptr->path[CITY_NUM-1]=NO_CITY;
             improve_open(bl,state_ptr);
             print_state(state_ptr);
-            exit(1);
+            exit(1);*/
         }
         //if(queue_is_empty(&states[i]))//stack
         //if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
@@ -2085,8 +2103,12 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             print_state(state_ptr);
             break;
         }    
+        states_keeper(state_ptr, WRITE);
+        
     }
-    printf("min_dist is %.1lf max_i is %d\n", min_dist,max_i);
+    
+    printf("min_dist is %.1lf max_i is %d i is %d bc is %d\n"
+        , min_dist,max_i,i,best_changed);
     print_path(best_path);
 
     free(state_ptr);
