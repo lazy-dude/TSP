@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-//#define EXAMPLE_8
-#define EXAMPLE_50
+#define EXAMPLE_8
+//#define EXAMPLE_50
 
 #define MAX_STATES 52 // 1000 25 15 10000 50
 
@@ -1106,20 +1106,16 @@ typedef struct st_t st_t;
 
 void print_path(int *path)
 {
-    printf("......\n");
+    //printf("......\n");
     int i;
     for(i = 0; i < CITY_NUM + 1; i++)
         path[i]==NO_CITY ? printf("- "):printf("%d ", path[i]);
     printf("\n");    
 }
 
-void print_state(st_t *states_ptr)
+void print_graph(void)
 {
     int i;
-    printf("======\n");
-    printf("f is %.1lf step is %d\n"
-        ,(states_ptr)->f,(states_ptr)->step);
-    
     for(i = 0; i < CITY_NUM; i++)
     {
         printf("%d : ", i);
@@ -1132,8 +1128,17 @@ void print_state(st_t *states_ptr)
         }
         printf("\n");
     }
+}
+void print_state(st_t *states_ptr)
+{
+    int i;
+    printf("======\n");
+    printf("f is %.1lf step is %d\n"
+        ,(states_ptr)->f,(states_ptr)->step);
     
-    printf("......\n");
+    
+    
+    //printf("......\n");
     
     printf("path : ");
     for(i = 0; i < CITY_NUM + 1; i++)
@@ -1553,10 +1558,15 @@ void place(int ci, st_t * state_ptr)
             break;
     state_ptr->path[i]=ci;
     
-    city c1,c2;
+    city c0,c1,c2;
+    city_info(&c0,0,READ);
     city_info(&c1,lp,READ);
     city_info(&c2,ci,READ);
     state_ptr->g += distance(c1,c2);
+    
+    state_ptr->h=distance(c0,c2); // TODO ->h 
+    state_ptr->f=state_ptr->g +state_ptr->h ;
+    state_ptr->step++;
     
     states_keeper(state_ptr,WRITE);
     print_state(state_ptr);
@@ -1836,13 +1846,14 @@ int banish(st_t * state_ptr) // TODO seems a problem here
     improve_open(r,state_ptr);
     assert(!on_path(r,state_ptr));
     
+    state_ptr->step++;
     states_keeper(state_ptr,WRITE);
     print_state(state_ptr);
     printf("@@@ leaving banish @@@\n");
     //exit(1);
     return r;
 }
-bool queue_is_empty(st_t * state_ptr)
+bool open_is_empty(st_t * state_ptr)
 {
     int i;
     for(i=0; i<=CITY_NUM; i++)
@@ -1884,7 +1895,7 @@ st_t init(void)
         }
     }
     
-    for(i=0; i<MAX_NEXT; i++)
+    for(i=0; i<CITY_NUM+1; i++)
         state.open[i]=g_vertex[i];
         
         //int pk[CITY_NUM+1];
@@ -1904,7 +1915,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     remove_repetition();
     print_keeper();
 
-    //st_t *states = calloc(MAX_STATES+1, sizeof(st_t)); // TODO single state ?
+    //st_t *all_states = calloc(MAX_STATES+1, sizeof(st_t)); // TODO single state ?
     st_t *state_ptr = calloc(1, sizeof(st_t));
     
     GLfloat min_dist;
@@ -1953,7 +1964,8 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     }
     best_path[CITY_NUM] = 0;
     print_path(best_path);
-
+    print_graph();
+    
     // TODO total distance(later min dis) is a cap
     // TODO stop on distance cap or any remaining city with no choice
     for(i = 1; i < MAX_STATES; i++) // TODO success forward backward
@@ -2039,7 +2051,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         for(j = 0; j < MAX_NEXT; j++)
         {
             int ci=g_vertex[top * MAX_NEXT + j];
-            ci=top;
+            ci=top; // TODO correct above
                 
             bool op=on_path( ci,state_ptr);
             if( ci != NO_CITY && !op)
@@ -2053,12 +2065,22 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         if(path_is_full(state_ptr) && state_ptr->g<min_dist)
         {
             min_dist=state_ptr->g;
-            for( j = 0; j <= CITY_NUM + 1; j++)
+            for( j = 0; j < CITY_NUM + 1; j++)
                 best_path[j] = (state_ptr)->path[j];
         }
-                
+        
+        if(open_is_empty(state_ptr)) // TODO how to continue for more solutions ?
+        {
+            //int top=banish(state_ptr);
+            int bl=state_ptr->path[CITY_NUM-1];
+            state_ptr->path[CITY_NUM-1]=NO_CITY;
+            improve_open(bl,state_ptr);
+            print_state(state_ptr);
+            exit(1);
+        }
         //if(queue_is_empty(&states[i]))//stack
-        if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
+        //if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
+        if(0)
         {
             print_state(state_ptr);
             break;
