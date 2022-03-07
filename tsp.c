@@ -1290,8 +1290,16 @@ bool all_nocity(void)//(st_t *state)
 }
 /// --- --- --- --- --- --- --- --- --- --- --- --- --- --- ///
 //void match(st_t *states,int *si_ptr);
+void remove_city(int ci, st_t * state_ptr)
+{
+    int i;
+    for(i=0; i<CITY_NUM; i++)
+        if(state_ptr->open[i]==ci)
+            state_ptr->open[i]=NO_CITY;
+    return;
+}
 
-void remove_city(int city)//, st_t *state)
+/*void remove_city(int city)//, st_t *state)
 {
     int l;
     
@@ -1303,7 +1311,7 @@ void remove_city(int city)//, st_t *state)
         }
     }
     
-}
+}*/
 
 void eliminate(st_t * state_ptr)
 {
@@ -1394,7 +1402,7 @@ bool possible_next(int next_city, st_t* state_ptr)
     {
         int index=next_city*MAX_NEXT+j;
         int city=g_vertex[index];
-        if(city!=NO_CITY && !on_path(city,state_ptr))
+        if(city!=NO_CITY && !on_path(city,state_ptr) && on_open(city,state_ptr))
             return true;
     }
     return false;
@@ -1405,7 +1413,7 @@ bool impossible(st_t * state_ptr)
         return true;
         
     int i;
-    for(i=0; i<CITY_NUM; i++)
+    for(i=1; i<CITY_NUM; i++)
         if(possible_next(i,state_ptr))
             return false;
     
@@ -1968,6 +1976,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     print_path(best_path);
     print_graph();
     
+    int sol1_flag=0;
     // TODO total distance(later min dis) is a cap
     // TODO stop on distance cap or any remaining city with no choice
     for(i = 1; i < MAX_STATES; i++) // TODO success forward backward
@@ -2017,9 +2026,11 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             
         //else
         //if(state_ptr->path[1]!=NO_CITY)
+        if(sol1_flag==0)
             top=banish(state_ptr);//pop
-        if(top==NO_CITY ) // TODO somehow go back and continue from there
-        //if(0)
+        else top=NO_CITY;
+        //if(top==NO_CITY ) // TODO somehow go back and continue from there
+        if(0)
         {
             //i--;
             int lp=last_path(state_ptr);
@@ -2056,7 +2067,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         }*/
         // TODO step 3:
         //int j;
-        for(j = 0; j < MAX_NEXT; j++)
+        for(j = 0; j < MAX_NEXT && (top!=NO_CITY); j++)//
         {
             int ci=g_vertex[top * MAX_NEXT + j];
             ci=top; // TODO correct above
@@ -2070,7 +2081,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             }
                 
         }
-        if(path_is_full(state_ptr) && state_ptr->g<min_dist)
+        if(path_is_full(state_ptr) && state_ptr->g<min_dist) // better solution found
         {
             best_changed++;
             min_dist=state_ptr->g;
@@ -2078,27 +2089,77 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 best_path[j] = (state_ptr)->path[j];
         }
         
-        if(open_is_empty(state_ptr)) // TODO how to continue for more solutions ?
+        int end_flag=0;
+        if(open_is_empty(state_ptr)) // first solution
         {
-            int lp=last_path(state_ptr);
-            while(open_is_empty(all_states+i))
+            
+            sol1_flag=1;
+        while(1) // TODO how to continue for more solutions ?
+        // was if open_is_empty(state_ptr)
+        {
+            int lp;//=last_path(state_ptr); ,j
+            for(j=CITY_NUM-1; state_ptr->path[j]==NO_CITY; j--)
+                continue;
+            //j--;
+            if(j<=0)
+            {
+                end_flag=1;
+                break;
+            }
+            /*while(impossible(all_states+i))
+                i--;
+            
+            while(open_is_empty(all_states+i) )
                 i--;
             assert(i>=0);
-            improve_open(lp,all_states+i);
-            assert(!open_is_empty(all_states+i));
+            assert(!open_is_empty(all_states+i));*/
+            
+            lp = state_ptr->path[j];
+            assert(lp!=NO_CITY);
+            printf("lp is %d j is %d\n",lp,j);
+            
+            
+            //sort_open(all_states+i);
+            int k=j;
+            for(int i2=i; i2>=0 && j>=0 ; i2--) // TODO modify previous states
+            {
+                //int inside_flag=0;
+                for( j=k; j>0 ; j--)//state_ptr->open[i2] // && !adj(lp,i2)
+                {
+                    int blp=all_states[i2].path[j];//state_ptr->path[j];
+                    
+                    assert(lp!=blp);
+                    if( (adj(lp,blp) || adj(blp,lp)) &&(k-j>1))//
+                    {
+                        break;
+                    }
+                    remove_city(blp,all_states+i2);//remove_city(lp,all_states+i);
+                    remove_city(lp,all_states+i2);
+                }
+                
+            }
+            
             *state_ptr=all_states[i];
             print_state(state_ptr);
-        
-            //int top=banish(state_ptr);
-            /*int bl=state_ptr->path[CITY_NUM-1];
-            state_ptr->path[CITY_NUM-1]=NO_CITY;
-            improve_open(bl,state_ptr);
-            print_state(state_ptr);
-            exit(1);*/
+            
+            if(i<=0)
+            {
+                end_flag=1;
+                break;
+            }
+            
+            
+            if(!open_is_empty(all_states+i))
+                break;
+            if(!impossible(all_states+i))
+                break;
+            i--;
+            
+        }
         }
         //if(queue_is_empty(&states[i]))//stack
         //if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
-        if(0)
+        if(end_flag)//(0)
         {
             print_state(state_ptr);
             break;
