@@ -5,7 +5,7 @@
 //#define EXAMPLE_8
 #define EXAMPLE_50
 
-#define MAX_STATES 52 // 1000 25 15 10000 50
+#define MAX_STATES 102 // 1000 25 15 10000 50
 
 #include <assert.h>
 #include <math.h>
@@ -1738,6 +1738,12 @@ void neat_open(st_t * state_ptr)
                     break;
                 }
 }
+void multiple_open(st_t * state_ptr,int ind)
+{
+    fill_open(state_ptr,ind);
+    neat_open(state_ptr);
+    sort_open(state_ptr);
+}
 
 int banish(st_t * state_ptr) // TODO seems a problem here
 {
@@ -2026,11 +2032,43 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             
         //else
         //if(state_ptr->path[1]!=NO_CITY)
+        int lp=last_path(state_ptr);
         if(sol1_flag==0)
             top=banish(state_ptr);//pop
-        else top=NO_CITY;
+        else if (open_is_empty(state_ptr))
+        {
+            while(open_is_empty(all_states+i))
+                i--;
+            if(i<0)
+                break;
+            all_states[i].open[0]=NO_CITY;
+            neat_open(all_states+i);
+            *state_ptr=all_states[i];
+            continue;
+        }
+        else if(adj(state_ptr->open[0] ,lp)) // TODO this seems like a work-around
+        {
+            
+            top=state_ptr->open[0];
+            //multiple_open(state_ptr,top);
+            state_ptr->open[0]=NO_CITY;
+            neat_open(state_ptr);
+            place(top,state_ptr);
+            states_keeper(state_ptr, WRITE);
+            
+            print_state(state_ptr);
+            
+            continue;
+        }else if(!adj(state_ptr->open[0] ,lp))
+        {
+            //multiple_open(state_ptr,state_ptr->open[0]);
+            state_ptr->open[0]=NO_CITY;
+            neat_open(state_ptr);
+            continue;
+        }
+        
         //if(top==NO_CITY ) // TODO somehow go back and continue from there
-        if(0)
+        /*if(0)
         {
             //i--;
             int lp=last_path(state_ptr);
@@ -2039,32 +2077,19 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             //(states+i)->queue[0]=NO_CITY;
             //(states+i)->queue[1]=NO_CITY;
             int q0=(state_ptr)->open[0];
-            while(!adj(q0,lp))
+            while(!adj(q0,lp)|| !adj(lp,q0))
                 i--;
             if(i<=0)
                 break;
-                
+            
+            *state_ptr=all_states[i];
             continue;
             //break;
-        }
-        int j;
-        /*for(j=0; j<=CITY_NUM+1; j++) // j=0
-        {
-            if((states+i)->path[j]==NO_CITY)
-            {
-                (states+i)->path[j]=top;
-                city c1,c2;
-                city_info(&c1, top, READ);
-                city_info(&c2, (states+i)->path[j-1], READ);
-                (states+i)->g += distance(c1,c2);
-                city c0;
-                city_info(&c0,0,READ);
-                (states+i)->h = distance(c0,c2);// TODO better heuristic
-                (states+i)->f=(states+i)->g+(states+i)->h;
-                break;
-            }
-            
         }*/
+        
+        int j;
+        
+        
         // TODO step 3:
         //int j;
         for(j = 0; j < MAX_NEXT && (top!=NO_CITY); j++)//
@@ -2076,7 +2101,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             if( ci != NO_CITY && !op)
             {
                 place(ci, state_ptr);//push
-                
+                states_keeper(state_ptr, WRITE);
                 //exit(1);
             }
                 
@@ -2090,14 +2115,13 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         }
         
         int end_flag=0;
-        if(open_is_empty(state_ptr)) // first solution
-        {
-            
+        if(open_is_empty(state_ptr)&& !sol1_flag) // first solution
+        { 
             sol1_flag=1;
         while(1) // TODO how to continue for more solutions ?
         // was if open_is_empty(state_ptr)
         {
-            int lp;//=last_path(state_ptr); ,j
+            //int lp;//=last_path(state_ptr); ,j
             for(j=CITY_NUM-1; state_ptr->path[j]==NO_CITY; j--)
                 continue;
             //j--;
@@ -2121,23 +2145,38 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             
             //sort_open(all_states+i);
             int k=j;
-            for(int i2=i; i2>=0 && j>=0 ; i2--) // TODO modify previous states
+            int i2=i;
+            int inside_flag=0;
+            //int j2=j;
+            for( i2=i; i2>=0 && j>=0 ; i2--) // TODO modify previous states
             {
-                //int inside_flag=0;
-                for( j=k; j>0 ; j--)//state_ptr->open[i2] // && !adj(lp,i2)
+                for( j=k-1; j>0 ; j--)//state_ptr->open[i2] // && !adj(lp,i2)
                 {
+                    
                     int blp=all_states[i2].path[j];//state_ptr->path[j];
                     
+                    if(blp==NO_CITY)
+                        continue;
+                    assert(blp != NO_CITY);
+                    
                     assert(lp!=blp);
-                    if( (adj(lp,blp) || adj(blp,lp)) &&(k-j>1))//
+                    if( (adj(lp,blp) || adj(blp,lp)) &&(k-j>1)) //
                     {
+                        inside_flag=1;
                         break;
                     }
-                    remove_city(blp,all_states+i2);//remove_city(lp,all_states+i);
-                    remove_city(lp,all_states+i2);
+                    //remove_city(blp,all_states+i2);//remove_city(lp,all_states+i);
+                    remove_city(lp,all_states+i2);//
+                    //fill_open(state_ptr,lp);
+                    neat_open(state_ptr);
+                    sort_open(state_ptr);
+                    
                 }
-                
+                if(inside_flag)
+                    break;
             }
+            if(inside_flag)
+                break;
             
             *state_ptr=all_states[i];
             print_state(state_ptr);
@@ -2149,8 +2188,8 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             }
             
             
-            if(!open_is_empty(all_states+i))
-                break;
+            //if(!open_is_empty(all_states+i))
+              //  break;
             if(!impossible(all_states+i))
                 break;
             i--;
@@ -2160,7 +2199,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         //if(queue_is_empty(&states[i]))//stack
         //if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
         if(end_flag)//(0)
-        {
+        {   
             print_state(state_ptr);
             break;
         }    
