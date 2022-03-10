@@ -1884,6 +1884,18 @@ bool path_is_full(st_t *state) // TODO distance , etc
             return false;
     return true;
 }
+
+bool full_but_last(st_t * state_ptr)
+{
+    if(state_ptr->path[CITY_NUM-1]!=NO_CITY)
+        return false;
+    int i;
+    for(i=0; i<CITY_NUM-1; i++)
+        if(state_ptr->path[i]==NO_CITY)
+            return false;
+    return true;
+}
+
 st_t init(void)
 {
     st_t state={0};
@@ -2041,9 +2053,11 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 i--;
             if(i<0)
                 break;
+            
             all_states[i].open[0]=NO_CITY;
             neat_open(all_states+i);
             *state_ptr=all_states[i];
+            
             continue;
         }
         else if(adj(state_ptr->open[0] ,lp)) // TODO this seems like a work-around
@@ -2055,7 +2069,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             neat_open(state_ptr);
             place(top,state_ptr);
             states_keeper(state_ptr, WRITE);
-            
+            multiple_open(state_ptr,top);
             print_state(state_ptr);
             
             continue;
@@ -2064,6 +2078,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             //multiple_open(state_ptr,state_ptr->open[0]);
             state_ptr->open[0]=NO_CITY;
             neat_open(state_ptr);
+            
             continue;
         }
         
@@ -2106,6 +2121,29 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             }
                 
         }
+        
+        if(full_but_last(state_ptr))
+        {
+            print_state(state_ptr);
+            int ci[CITY_NUM + 1];
+            int i;
+            int lr;
+            for(i=0;i<CITY_NUM ; i++)
+                ci[i]=i;
+            for(i=0; i<CITY_NUM ; i++)
+                ci[state_ptr->path[i]]=NO_CITY;
+            for(i=0; i<CITY_NUM ; i++)
+                if(ci[i]!=NO_CITY)
+                    lr=ci[i];
+            assert(!on_path(lr,state_ptr));
+            state_ptr->path[CITY_NUM-1]=lr;
+            state_ptr->open[0]=NO_CITY;
+            assert(path_is_full(state_ptr));
+            print_state(state_ptr);
+            printf("lr is %d\n",lr);
+            // TODO add distance
+        }
+        
         if(path_is_full(state_ptr) && state_ptr->g<min_dist) // better solution found
         {
             best_changed++;
@@ -2130,13 +2168,6 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 end_flag=1;
                 break;
             }
-            /*while(impossible(all_states+i))
-                i--;
-            
-            while(open_is_empty(all_states+i) )
-                i--;
-            assert(i>=0);
-            assert(!open_is_empty(all_states+i));*/
             
             lp = state_ptr->path[j];
             assert(lp!=NO_CITY);
@@ -2187,15 +2218,14 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 break;
             }
             
-            
             //if(!open_is_empty(all_states+i))
               //  break;
             if(!impossible(all_states+i))
                 break;
-            i--;
-            
+            i--;    
         }
         }
+        
         //if(queue_is_empty(&states[i]))//stack
         //if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
         if(end_flag)//(0)
