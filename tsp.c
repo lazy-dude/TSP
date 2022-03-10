@@ -1995,12 +1995,12 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     print_graph();
     
     int sol1_flag=0;
+    int solutions=0;
     // TODO total distance(later min dis) is a cap
     // TODO stop on distance cap or any remaining city with no choice
     for(i = 1; i < MAX_STATES; i++) // TODO success forward backward
     {
-        //if(stack_is_empty(&states[i]))
-        //    break;
+        
         //states[i] = states[i - 1];
         all_states[i]=*state_ptr;
         
@@ -2058,7 +2058,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             neat_open(all_states+i);
             *state_ptr=all_states[i];
             
-            continue;
+            //continue;
         }
         else if(adj(state_ptr->open[0] ,lp)) // TODO this seems like a work-around
         {
@@ -2072,14 +2072,14 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             multiple_open(state_ptr,top);
             print_state(state_ptr);
             
-            continue;
+            //continue;
         }else if(!adj(state_ptr->open[0] ,lp))
         {
             //multiple_open(state_ptr,state_ptr->open[0]);
             state_ptr->open[0]=NO_CITY;
             neat_open(state_ptr);
             
-            continue;
+            //continue;
         }
         
         //if(top==NO_CITY ) // TODO somehow go back and continue from there
@@ -2142,7 +2142,18 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             print_state(state_ptr);
             printf("lr is %d\n",lr);
             // TODO add distance
+            city cbl,cl,c0;
+            city_info(&cbl,state_ptr->path[CITY_NUM-2],READ);
+            city_info(&cl,state_ptr->path[CITY_NUM-1],READ);
+            city_info(&c0,state_ptr->path[CITY_NUM],READ);
+            state_ptr->g += distance(cbl,cl);
+            state_ptr->g += distance(cl,c0);
+            state_ptr->f = state_ptr->g;
+            state_ptr->h = 0.0;
         }
+        
+        if(path_is_full(state_ptr))
+            solutions++;
         
         if(path_is_full(state_ptr) && state_ptr->g<min_dist) // better solution found
         {
@@ -2237,8 +2248,8 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
     }
     
-    printf("min_dist is %.1lf max_i is %d i is %d bc is %d\n"
-        , min_dist,max_i,i,best_changed);
+    printf("min_dist is %.1lf max_i is %d i is %d bc is %d solutions: %d\n"
+        , min_dist,max_i,i,best_changed,solutions);
     print_path(best_path);
 
     free(state_ptr);
