@@ -398,6 +398,7 @@ bool vertex3(int *v3)
     return true;
 }
 
+/*
 GLfloat min(GLfloat a, GLfloat b)
 {
     GLfloat min;
@@ -410,7 +411,7 @@ GLfloat max(GLfloat a, GLfloat b)
     max = (a > b) ? a : b;
     return max;
 }
-
+*/
 #define MIN_DIFF 5
 bool lines_cross(city c1, city c2, city c3, city c4)
 {
@@ -443,8 +444,8 @@ bool lines_cross(city c1, city c2, city c3, city c4)
         return false;
 
     if( 
-        x > (min(c1.x, c2.x)) && x < (max(c1.x, c2.x)) && x > (min(c3.x, c4.x)) && x < (max(c3.x, c4.x)) &&
-        y > (min(c1.y, c2.y)) && y < (max(c1.y, c2.y)) && y > (min(c3.y, c4.y)) && y < (max(c3.y, c4.y)))
+        x > (fmin(c1.x, c2.x)) && x < (fmax(c1.x, c2.x)) && x > (fmin(c3.x, c4.x)) && x < (fmax(c3.x, c4.x)) &&
+        y > (fmin(c1.y, c2.y)) && y < (fmax(c1.y, c2.y)) && y > (fmin(c3.y, c4.y)) && y < (fmax(c3.y, c4.y)))
         return true;
     return false;
 }
