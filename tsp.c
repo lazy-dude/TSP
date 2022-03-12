@@ -355,7 +355,7 @@ void last_draw(void)
 
 int vertex(GLfloat x, GLfloat y)
 {
-    //static int prev_i[4]={NO_CITY};
+    //static bool prev[CITY_NUM+1]={false};
     //static int pi=0;
     int i;
     int cnt = 0;
@@ -363,8 +363,12 @@ int vertex(GLfloat x, GLfloat y)
     {
         city ci;
         city_info(&ci, i, READ);
+        //prev[i]=false;
         if(ci.on_cycle == NOT_OC)
+        {
+            //prev[i]=true;
             cnt++;
+        }
     }
     if(cnt < 3)
         return LAST_LAYER; 
@@ -377,14 +381,15 @@ int vertex(GLfloat x, GLfloat y)
     {
         city_info(&ci, i, READ);
         GLfloat dis = distance(ci, eg);
-        if(dis < min_dis && ci.on_cycle == NOT_OC) 
+        if(dis < min_dis && ci.on_cycle == NOT_OC )//&& prev[i]==true) 
         {
             min_dis = dis;
             save_i = i;
         }
     }
     
-    
+    //assert(prev[save_i]);
+    //prev[save_i]=false;
     assert(correct_index(save_i));
     return save_i;
 }
@@ -395,10 +400,10 @@ bool vertex3(int *v3)
     v3[0] = vertex(xMax /2 , 0.0);
     v3[1] = vertex(0.0, yMax);
     v3[2] = vertex(xMax, yMax);
-    /*assert(v3[0]!=v3[1]);
-    assert(v3[1]!=v3[2]);
-    assert(v3[0]!=v3[2]);
-    */
+    assert(v3[0]!=v3[1] || v3[0]==LAST_LAYER || v3[1]==LAST_LAYER);
+    assert(v3[1]!=v3[2] || v3[1]==LAST_LAYER || v3[2]==LAST_LAYER);
+    assert(v3[0]!=v3[2] || v3[0]==LAST_LAYER || v3[2]==LAST_LAYER);
+    
     if(v3[0] == LAST_LAYER || v3[1] == LAST_LAYER || v3[2] == LAST_LAYER)
         return false;
     return true;
@@ -456,10 +461,10 @@ bool lines_cross(city c1, city c2, city c3, city c4)
     return false;
 }
 
-bool inside_cycle(int *vertices, int vertices_num, int io_ind)
+bool inside_cycle(int *vertices, int vert_num, int io_ind)
 {
     
-    assert(vertices_num >= 3);
+    assert(vert_num >= 3);
     
     int i;
     
@@ -487,9 +492,9 @@ bool inside_cycle(int *vertices, int vertices_num, int io_ind)
         int j = 0;
         int k = 0;
         int l = 0;
-        for(l = 0; l < vertices_num; l++)
+        for(l = 0; l < vert_num; l++)
         {
-            for(j = 0; j < vertices_num; j++)
+            for(j = 0; j < vert_num; j++)
             {
                 if(l == j)
                     continue;
@@ -497,26 +502,27 @@ bool inside_cycle(int *vertices, int vertices_num, int io_ind)
                 city cl, cj;
                 city_info(&cl, vertices[l], READ);
                 city_info(&cj, vertices[j], READ);
-                for(k = 0; k < vertices_num; k++)
+                for(k = 0; k < vert_num; k++)
                 {
                     /*if(k == io_ind || l==io_ind||j==io_ind)
-                        continue;
-                    if(l==j || k==j || k==l)
                         continue;*/
+                    if(l==j || k==j || k==l)
+                        continue;
                     if(k == io_ind)
                         continue;
                     
                     city ck;
                     city_info(&ck, vertices[k], READ);
                     if(lines_cross(ck, in_out, cl, cj) &&
-                       (l == j + 1 || j == l + 1 || (j == 0 && l == vertices_num - 1) ||
-                        (l == 0 && j == vertices_num - 1))
+                       (l == j + 1 || j == l + 1 || (j == 0 && l == vert_num - 1) ||
+                        (l == 0 && j == vert_num - 1))
                     ) 
                     //if(lines_cross(ck, in_out, cl, cj)||lines_cross(cl,in_out,ck,cj)||lines_cross(cj,in_out,ck,cl))// TODO above was active
                     { 
                         cond = true;
                         return false; // TODO is it correct ?
                     }
+                    
                 }
             }
         }
@@ -537,12 +543,12 @@ bool inside_cycle(int *vertices, int vertices_num, int io_ind)
 
     return true;
 }
-bool outside_cycle(int *vertices, int vertices_num, int io_ind)
+bool outside_cycle(int *vertices, int vert_num, int io_ind)
 {
     bool r;
     
     int i;
-    for(i = 0; i < vertices_num; i++)
+    for(i = 0; i < vert_num; i++)
     {
         city ci;
         city_info(&ci, i, READ);
@@ -550,14 +556,14 @@ bool outside_cycle(int *vertices, int vertices_num, int io_ind)
         if(io_ind == vertices[i])
             return false;
     }
-    r = !inside_cycle(vertices, vertices_num, io_ind);
+    r = !inside_cycle(vertices, vert_num, io_ind);
     return r;
 }
 
-void print_vertices(int *vertices, int vertices_num)
+void print_vertices(int *vertices, int vert_num)
 {
     int i;
-    for(i = 0; i < vertices_num; i++)
+    for(i = 0; i < vert_num; i++)
         printf("vertices[%d] is %d ", i, vertices[i]);
     printf("\n");
 }
@@ -577,7 +583,7 @@ void print_no_cycle(void)
     printf("\n");
 }
 
-void expand_cycle(int *vertices, int vertices_num, int out_ind)
+void expand_cycle(int *vertices, int vert_num, int out_ind)
 {
     int i, j;
     int e1 = 0, e2 = 0;
@@ -585,13 +591,13 @@ void expand_cycle(int *vertices, int vertices_num, int out_ind)
     GLfloat dis2 = xMax + yMax;
     city out_city;
     city_info(&out_city, out_ind, READ);
-    assert(!inside_cycle(vertices, vertices_num, out_ind));
-    for(i = 0; i < vertices_num; i++)
+    assert(!inside_cycle(vertices, vert_num, out_ind));
+    for(i = 0; i < vert_num; i++)
         assert(out_ind != vertices[i]);
 
-    print_vertices(vertices, vertices_num);
-    for(i = 0; i < vertices_num - 1; i++)
-        for(j = i + 1; j < vertices_num; j++)
+    print_vertices(vertices, vert_num);
+    for(i = 0; i < vert_num - 1; i++)
+        for(j = i + 1; j < vert_num; j++)
         {
             if(i == j)
                 continue;
@@ -619,13 +625,13 @@ void expand_cycle(int *vertices, int vertices_num, int out_ind)
         printf("e1 is %d e2 is %d out_ind is %d \n", e1, e2, out_ind);
     assert(e1 != e2);
 
-    if(e2 == vertices[vertices_num - 1] || e1 == vertices[vertices_num - 1])
+    if(e2 == vertices[vert_num - 1] || e1 == vertices[vert_num - 1])
     {
-        vertices[vertices_num] = out_ind;
-        print_vertices(vertices, vertices_num + 1);
+        vertices[vert_num] = out_ind;
+        print_vertices(vertices, vert_num + 1);
         return;
     }
-    for(i = vertices_num - 1; i > 0; i--)
+    for(i = vert_num - 1; i > 0; i--)
     {
         vertices[i + 1] = vertices[i];
         if(vertices[i] == e2 || vertices[i] == e1) 
@@ -635,14 +641,14 @@ void expand_cycle(int *vertices, int vertices_num, int out_ind)
         }
     }
 
-    print_vertices(vertices, vertices_num + 1);
+    print_vertices(vertices, vert_num + 1);
 }
 
 // TODO expand cycle 3 to more.
-bool general_cycle(int *vertices, int *vertices_num, int cycle) 
+bool general_cycle(int *vertices, int *vert_num, int cycle) 
 {
     // TODO inside vertices
-    *vertices_num = 0;
+    *vert_num = 0;
     int i;
     int cnt; 
 
@@ -659,11 +665,11 @@ bool general_cycle(int *vertices, int *vertices_num, int cycle)
                 ci.on_cycle = cycle;
                 city_info(&ci, i, WRITE);
                 cycle_keeper(&i, i, cycle, WRITE); 
-                vertices[*vertices_num] = i;
-                (*vertices_num)++;
+                vertices[*vert_num] = i;
+                (*vert_num)++;
             }
         }
-        print_vertices(vertices, *vertices_num);
+        print_vertices(vertices, *vert_num);
         return true; // LAST_LAYER;
     }
 
@@ -693,7 +699,7 @@ bool general_cycle(int *vertices, int *vertices_num, int cycle)
         cycle_keeper(&vertices[i], i, cycle, WRITE); 
     }
 
-    *vertices_num = cnt;
+    *vert_num = cnt;
     return false; 
 }
 //////////////////////////////////////
@@ -1809,7 +1815,7 @@ int banish(st_t * state_ptr) // TODO seems a problem here
         if(r==NO_CITY)
             continue;
         
-        if( on_path(r,state_ptr) /*|| on_open(r,state)*/|| !adj(r,lp) )//|| !adj(r,lp)
+        if( on_path(r,state_ptr) || /*on_open(r,state_ptr) ||*/ !adj(r,lp) )//|| !adj(r,lp))
             continue;
             
         else//(r==NO_CITY  )
