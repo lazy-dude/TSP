@@ -355,6 +355,8 @@ void last_draw(void)
 
 int vertex(GLfloat x, GLfloat y)
 {
+    //static int prev_i[4]={NO_CITY};
+    //static int pi=0;
     int i;
     int cnt = 0;
     for(i = 0; i < CITY_NUM; i++)
@@ -381,7 +383,8 @@ int vertex(GLfloat x, GLfloat y)
             save_i = i;
         }
     }
-
+    
+    
     assert(correct_index(save_i));
     return save_i;
 }
@@ -389,10 +392,13 @@ int vertex(GLfloat x, GLfloat y)
 bool vertex3(int *v3)
 {
     
-    v3[0] = vertex(xMax / 2, 0);
-    v3[1] = vertex(0, yMax);
+    v3[0] = vertex(xMax /2 , 0.0);
+    v3[1] = vertex(0.0, yMax);
     v3[2] = vertex(xMax, yMax);
-
+    /*assert(v3[0]!=v3[1]);
+    assert(v3[1]!=v3[2]);
+    assert(v3[0]!=v3[2]);
+    */
     if(v3[0] == LAST_LAYER || v3[1] == LAST_LAYER || v3[2] == LAST_LAYER)
         return false;
     return true;
@@ -493,6 +499,10 @@ bool inside_cycle(int *vertices, int vertices_num, int io_ind)
                 city_info(&cj, vertices[j], READ);
                 for(k = 0; k < vertices_num; k++)
                 {
+                    /*if(k == io_ind || l==io_ind||j==io_ind)
+                        continue;
+                    if(l==j || k==j || k==l)
+                        continue;*/
                     if(k == io_ind)
                         continue;
                     
@@ -500,16 +510,18 @@ bool inside_cycle(int *vertices, int vertices_num, int io_ind)
                     city_info(&ck, vertices[k], READ);
                     if(lines_cross(ck, in_out, cl, cj) &&
                        (l == j + 1 || j == l + 1 || (j == 0 && l == vertices_num - 1) ||
-                        (l == 0 && j == vertices_num - 1))) 
-                    {
+                        (l == 0 && j == vertices_num - 1))
+                    ) 
+                    //if(lines_cross(ck, in_out, cl, cj)||lines_cross(cl,in_out,ck,cj)||lines_cross(cj,in_out,ck,cl))// TODO above was active
+                    { 
                         cond = true;
+                        return false; // TODO is it correct ?
                     }
                 }
             }
         }
         
         if(cond)
-
         {
             printf("io_ind is %d ,out\n", io_ind);
             return false;
@@ -675,6 +687,7 @@ bool general_cycle(int *vertices, int *vertices_num, int cycle)
         city ci;
         city_info(&ci, vertices[i], READ);
         assert(ci.on_cycle <= cycle);
+        
         ci.on_cycle = cycle;
         city_info(&ci, vertices[i], WRITE);
         cycle_keeper(&vertices[i], i, cycle, WRITE); 
@@ -709,8 +722,8 @@ void joints(int cycle)
     int j_cnt = 0;
     int oj_cnt = 0;
     city ci;
-    int *in_joint = calloc(CITY_NUM, sizeof(int)); 
-    int *out_joint = calloc(CITY_NUM, sizeof(int)); 
+    int *in_joint = calloc(CITY_NUM+1, sizeof(int)); 
+    int *out_joint = calloc(CITY_NUM+1, sizeof(int)); 
 
     for(i = 0; i < CITY_NUM; i++)
     {
@@ -920,6 +933,36 @@ void joints(int cycle)
                 city_info(&cjo, out_joint[i], WRITE);
             }
         }
+        // TODO joints for all (NO_CITY) oj to nearest ij
+        int nc_cnt=0; 
+        for(i=0; i<oj_cnt; i++)
+        {
+            city_info(&cjo, out_joint[i], READ);
+            city_info(&cji, in_joint[0], READ);
+            GLfloat dis3 = distance(cjo,cji);
+            if(cjo.joint == NO_CITY)
+            {
+                for(j=0; j<j_cnt; j++)
+                {
+                    city_info(&cji, in_joint[j], READ);
+                    if(distance(cjo,cji) < dis3)
+                    {
+                        dis3 = distance(cjo,cji);
+                        cjo.joint = j;
+                        city_info(&cjo, out_joint[i], WRITE);
+                        nc_cnt++;
+                    }
+                }
+            }
+        }
+        /*for(i=0; i<oj_cnt; i++)
+        {
+            city_info(&cjo, out_joint[i], READ);
+            if(cjo.joint == NO_CITY)
+                exit(1); // TODO remove this 
+        }*/
+        printf("nc_cnt is %d\n",nc_cnt);
+        
     }
 
     // TODO print joints
