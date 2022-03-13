@@ -2177,8 +2177,8 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         {
             print_state(state_ptr);
             int ci[CITY_NUM + 1];
-            //int i;
-            int lr=NO_CITY;
+            int i2=i;
+            int lr;
             for(i=0;i<CITY_NUM ; i++)
                 ci[i]=i;
             for(i=0; i<CITY_NUM ; i++)
@@ -2201,6 +2201,8 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             state_ptr->g += distance(cl,c0);
             state_ptr->f = state_ptr->g;
             state_ptr->h = 0.0;
+            
+            i=i2;
         }
         
         if(path_is_full(state_ptr))
