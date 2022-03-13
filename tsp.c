@@ -492,12 +492,13 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
         int j = 0;
         int k = 0;
         int l = 0;
-        for(l = 0; l < vert_num; l++)
+        for(l = 0; l < vert_num-1; l++)
         {
-            for(j = 0; j < vert_num; j++)
-            {
-                if(l == j)
-                    continue;
+            j=l+1;
+            //for(j = 0; j < vert_num; j++)
+            //{
+                //if(l == j)
+                  //  continue;
 
                 city cl, cj;
                 city_info(&cl, vertices[l], READ);
@@ -506,16 +507,16 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
                 {
                     /*if(k == io_ind || l==io_ind||j==io_ind)
                         continue;*/
-                    if(l==j || k==j || k==l)
+                    if( k==j || k==l)
                         continue;
                     if(k == io_ind)
                         continue;
                     
                     city ck;
                     city_info(&ck, vertices[k], READ);
-                    if(lines_cross(ck, in_out, cl, cj) &&
+                    if(lines_cross(ck, in_out, cl, cj) /*&&
                        (l == j + 1 || j == l + 1 || (j == 0 && l == vert_num - 1) ||
-                        (l == 0 && j == vert_num - 1))
+                        (l == 0 && j == vert_num - 1))*/
                     ) 
                     //if(lines_cross(ck, in_out, cl, cj)||lines_cross(cl,in_out,ck,cj)||lines_cross(cj,in_out,ck,cl))// TODO above was active
                     { 
@@ -524,7 +525,7 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
                     }
                     
                 }
-            }
+            //}
         }
         
         if(cond)
@@ -2176,8 +2177,8 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         {
             print_state(state_ptr);
             int ci[CITY_NUM + 1];
-            int i;
-            int lr;
+            //int i;
+            int lr=NO_CITY;
             for(i=0;i<CITY_NUM ; i++)
                 ci[i]=i;
             for(i=0; i<CITY_NUM ; i++)
