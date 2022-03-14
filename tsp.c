@@ -352,6 +352,7 @@ void last_draw(void)
 }
 
 // ************************************************ //
+void print_vertices(int *vertices, int vert_num);
 
 int vertex(GLfloat x, GLfloat y)
 {
@@ -397,32 +398,21 @@ int vertex(GLfloat x, GLfloat y)
 bool vertex3(int *v3)
 {
     
-    v3[0] = vertex(xMax /2 , 0.0);
+    v3[0] = vertex(xMax /2.0 , 0.0);
     v3[1] = vertex(0.0, yMax);
     v3[2] = vertex(xMax, yMax);
-    assert(v3[0]!=v3[1] || v3[0]==LAST_LAYER || v3[1]==LAST_LAYER);
-    assert(v3[1]!=v3[2] || v3[1]==LAST_LAYER || v3[2]==LAST_LAYER);
-    assert(v3[0]!=v3[2] || v3[0]==LAST_LAYER || v3[2]==LAST_LAYER);
+    //assert(v3[0]!=v3[1] || v3[0]==LAST_LAYER || v3[1]==LAST_LAYER);
+    //assert(v3[1]!=v3[2] || v3[1]==LAST_LAYER || v3[2]==LAST_LAYER);
+    //assert(v3[0]!=v3[2] || v3[0]==LAST_LAYER || v3[2]==LAST_LAYER);
     
     if(v3[0] == LAST_LAYER || v3[1] == LAST_LAYER || v3[2] == LAST_LAYER)
         return false;
+    if(v3[0]==v3[1]||v3[0]==v3[2]||v3[1]==v3[2])
+        return false;
+    
     return true;
 }
 
-/*
-GLfloat min(GLfloat a, GLfloat b)
-{
-    GLfloat min;
-    min = (a < b) ? a : b;
-    return min;
-}
-GLfloat max(GLfloat a, GLfloat b)
-{
-    GLfloat max;
-    max = (a > b) ? a : b;
-    return max;
-}
-*/
 #define MIN_DIFF 5
 bool lines_cross(city c1, city c2, city c3, city c4)
 {
@@ -466,19 +456,20 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
     
     assert(vert_num >= 3);
     
-    int i;
+    //int i;
     
     city in_out;
     city_info(&in_out, io_ind, READ);// TODO compute and find these
-    city ci;
+    //city ci;
     
     int v3[3];
     bool er = vertex3(v3);
     if(er == false)
-        return true;
-    printf("v1 is %d v2 is %d v3 is %d \n", v3[0], v3[1], v3[2]);
+        return false;
+    printf("v1 is %d v2 is %d v3 is %d io_ind is %d\n", v3[0], v3[1], v3[2],io_ind);
+    
 
-    for(i = 0; i < CITY_NUM; i++) 
+    /*for(i = 0; i < CITY_NUM; i++) 
     {
         if(i == io_ind)
             continue; 
@@ -486,46 +477,55 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
             continue; 
         if((io_ind == v3[0] || io_ind == v3[1] || io_ind == v3[2]))
             continue; 
-        city_info(&ci, i, READ);
+        city_info(&ci, i, READ);*/
 
         bool cond = false;
         int j = 0;
         int k = 0;
         int l = 0;
-        for(l = 0; l < vert_num-1; l++)
+        for(l = 0; l < vert_num; l++)
         {
-            //j=l+1;
-            for(j = 0; j < vert_num; j++)
-            {
+            if(l==vert_num-1)
+                j=0;
+            else 
+                j=l+1;
+            //for(j = 0; j < vert_num; j++)
+            //{
                 if(l == j)
                     continue;
 
                 city cl, cj;
                 city_info(&cl, vertices[l], READ);
                 city_info(&cj, vertices[j], READ);
-                for(k = 0; k < vert_num; k++)
+                for(k = 0; k < vert_num; k++)// CITY_NUM
                 {
-                    /*if(k == io_ind || l==io_ind||j==io_ind)
-                        continue;*/
-                    if(l==j || k==j || k==l)
+                    //if(k == io_ind || l==io_ind||j==io_ind)
+                      //  continue;
+                    if(vertices[l]==vertices[j] || vertices[k]==vertices[j] || vertices[k]==vertices[l])
                         continue;
-                    if(k == io_ind)
+                    if(vertices[k] == io_ind)
                         continue;
+                    //if(k==vertices[j] || k==vertices[l]|| k==io_ind)
+                      //  continue;
                     
                     city ck;
-                    city_info(&ck, vertices[k], READ);
-                    if(lines_cross(ck, in_out, cl, cj) &&
+                    city_info(&ck, vertices[k] , READ);//vertices[k]
+                    if(lines_cross(ck, in_out, cl, cj)
+                     /*&&
                        (l == j + 1 || j == l + 1 || (j == 0 && l == vert_num - 1) ||
-                        (l == 0 && j == vert_num - 1))
+                        (l == 0 && j == vert_num - 1))*/
                     ) 
-                    //if(lines_cross(ck, in_out, cl, cj)||lines_cross(cl,in_out,ck,cj)||lines_cross(cj,in_out,ck,cl))// TODO above was active
+                    
                     { 
+                        printf("** ");
+                        print_vertices(vertices,vert_num);
+                        
                         cond = true;
                         return false; // TODO is it correct ?
                     }
                     
                 }
-            }
+            //}
         }
         
         if(cond)
@@ -540,7 +540,7 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
             return true;
             
         }
-    }
+    //}
 
     return true;
 }
