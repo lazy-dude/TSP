@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-#define EXAMPLE_8
-//#define EXAMPLE_50
+//#define EXAMPLE_8
+#define EXAMPLE_50
 
 #define MAX_STATES 102 // 1000 25 15 10000 50
 
@@ -1019,10 +1019,10 @@ bool city_on_vertices(int i, int *const vertices, int vcnt)
 int *next_city(int const *const vertices, int vcnt, int i) // TODO debug
 {
     print_vertices(vertices,vcnt);
-    for(int i=0; i<vcnt; i++)
+    for(int ind=0; ind<vcnt; ind++)
     {
         city vc;
-        city_info(&vc, vertices[i], READ);
+        city_info(&vc, vertices[ind], READ);
         printf(" %d ",vc.on_cycle);
     }
     printf("\n");
@@ -1060,33 +1060,34 @@ int *next_city(int const *const vertices, int vcnt, int i) // TODO debug
         if(i==vertices[j]) // vertices[j]
             continue;
         
+
         int i1 = (((j + 1) >= vcnt) ? 0 : (j + 1));
         int i2 = (((j - 1) < 0) ? vcnt - 1 : (j - 1));
+        
         city c1,c2;
         city_info(&c1, vertices[i1], READ);
         city_info(&c2, vertices[i2], READ);
         assert(c1.on_cycle==c2.on_cycle);
         
-        
-        if( i == vertices[j]) // ci.on_cycle == cj.on_cycle &&
+        if(i == vertices[j]) 
         {
             if(next_node[2] == NO_CITY) // TODO gen this pattern
-                next_node[2] = i;//vertices[i1]; 
+                next_node[2] = vertices[i1]; 
         }
-        if( i == vertices[i1]) //else
+        else if( i == vertices[i1]) 
         {
             if(next_node[3] == NO_CITY)
-                next_node[3] = i;//vertices[j];
+                next_node[3] = vertices[j];
         }
-        if(i == vertices[j]) // TODO rotation ?
+        if( i == vertices[j]) // TODO rotation ?
         {
             if(next_node[4] == NO_CITY)
-                next_node[4] = i;//vertices[i2];
+                next_node[4] = vertices[i2];
         }
-        if( i == vertices[i2]) // else
+        else if( i == vertices[i2])
         {
             if(next_node[5] == NO_CITY)
-                next_node[5] = i;//vertices[j];
+                next_node[5] = vertices[j];
         }
         
     }
