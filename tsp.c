@@ -2,8 +2,8 @@
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
 //#define NDEBUG
-//#define EXAMPLE_8
-#define EXAMPLE_50
+#define EXAMPLE_8
+//#define EXAMPLE_50
 
 #define MAX_STATES 102 // 1000 25 15 10000 50
 
@@ -30,7 +30,7 @@
 #define NOT_OC 0 //-1
 #define LAST_LAYER -1
 //#define MAX_EDGES CITY_NUM
-#define MAX_CYCLES 10
+#define MAX_CYCLES 30
 #define NO_CITY -1
 
 static int last_i = 0;
@@ -185,10 +185,11 @@ bool almost_all_visited(void)
 
 void cycle_keeper(int *vertex, int vertex_ind, int no_cycles, enum RW rw)
 {
+    
     assert(vertex_ind >= 0);
     assert(vertex_ind < CITY_NUM);
     assert(no_cycles >= 0);
-    assert(no_cycles < MAX_CYCLES);
+    assert(no_cycles <= MAX_CYCLES);
     static int flag = 0;
     static int *vertices_arr;
     vertex_ind++;
@@ -352,7 +353,7 @@ void last_draw(void)
 }
 
 // ************************************************ //
-void print_vertices(int *vertices, int vert_num);
+void print_vertices(int const *vertices, int vert_num);
 
 int vertex(GLfloat x, GLfloat y)
 {
@@ -451,16 +452,50 @@ bool lines_cross(city c1, city c2, city c3, city c4)
     return false;
 }
 
-bool inside_cycle(int *vertices, int vert_num, int io_ind)
+bool inside_cycle(int *vertices, int vert_num, int io_ind) // TODO instead of lines_cross use min or max distance
 {
-    
     assert(vert_num >= 3);
+    if(vert_num<3)
+        return false;
     
-    //int i;
+    int i,j;
+    GLfloat v_dis =0.0;
+    GLfloat io_dis=0.0;
+    for(i=0; i<vert_num; i++)   
+    {
+        for(j=0; j<vert_num; j++)
+        {
+            if(i==j)
+                continue;
+            city ci,cj;
+            city_info(&ci,vertices[i],READ);
+            city_info(&cj,vertices[j],READ);
+            if(distance(ci, cj) > v_dis)
+                v_dis=distance(ci, cj); 
+        }
+    }
     
+    city io_city, v_city;
+    city_info(&io_city, io_ind, READ);
+    for(i=0; i<vert_num; i++)
+    {
+        city_info(&v_city, vertices[i], READ);
+        if(distance(v_city, io_city) > io_dis)
+            io_dis=distance(v_city, io_city);
+    }
+    if(v_dis > io_dis)
+        return true;
+    else
+    {
+        assert(io_dis > v_dis);
+        return false;
+    }
+    
+    
+    /*
     city in_out;
     city_info(&in_out, io_ind, READ);// TODO compute and find these
-    //city ci;
+    
     
     int v3[3];
     bool er = vertex3(v3);
@@ -469,16 +504,8 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
     printf("v1 is %d v2 is %d v3 is %d io_ind is %d\n", v3[0], v3[1], v3[2],io_ind);
     
 
-    /*for(i = 0; i < CITY_NUM; i++) 
-    {
-        if(i == io_ind)
-            continue; 
-        if(!(i == v3[0] || i == v3[1] || i == v3[2]))
-            continue; 
-        if((io_ind == v3[0] || io_ind == v3[1] || io_ind == v3[2]))
-            continue; 
-        city_info(&ci, i, READ);*/
-
+    
+    
         bool cond = false;
         int j = 0;
         int k = 0;
@@ -489,8 +516,7 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
                 j=0;
             else 
                 j=l+1;
-            //for(j = 0; j < vert_num; j++)
-            //{
+            
                 if(l == j)
                     continue;
 
@@ -499,21 +525,17 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
                 city_info(&cj, vertices[j], READ);
                 for(k = 0; k < vert_num; k++)// CITY_NUM
                 {
-                    //if(k == io_ind || l==io_ind||j==io_ind)
-                      //  continue;
+                    
                     if(vertices[l]==vertices[j] || vertices[k]==vertices[j] || vertices[k]==vertices[l])
                         continue;
                     if(vertices[k] == io_ind)
                         continue;
-                    //if(k==vertices[j] || k==vertices[l]|| k==io_ind)
-                      //  continue;
+                    
                     
                     city ck;
-                    city_info(&ck, vertices[k] , READ);//vertices[k]
+                    city_info(&ck, vertices[k] , READ);
                     if(lines_cross(ck, in_out, cl, cj)
-                     /*&&
-                       (l == j + 1 || j == l + 1 || (j == 0 && l == vert_num - 1) ||
-                        (l == 0 && j == vert_num - 1))*/
+                     
                     ) 
                     
                     { 
@@ -540,9 +562,9 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind)
             return true;
             
         }
-    //}
-
-    return true;
+    
+    
+    return true;*/
 }
 bool outside_cycle(int *vertices, int vert_num, int io_ind)
 {
@@ -561,7 +583,7 @@ bool outside_cycle(int *vertices, int vert_num, int io_ind)
     return r;
 }
 
-void print_vertices(int *vertices, int vert_num)
+void print_vertices(int const *vertices, int vert_num)
 {
     int i;
     for(i = 0; i < vert_num; i++)
@@ -587,7 +609,7 @@ void print_no_cycle(void)
 void expand_cycle(int *vertices, int vert_num, int out_ind)
 {
     int i, j;
-    int e1 = 0, e2 = 0;
+    int e1 = NO_CITY, e2 = NO_CITY;
     GLfloat dis1 = xMax + yMax;
     GLfloat dis2 = xMax + yMax;
     city out_city;
@@ -665,7 +687,7 @@ bool general_cycle(int *vertices, int *vert_num, int cycle)
             {
                 ci.on_cycle = cycle;
                 city_info(&ci, i, WRITE);
-                cycle_keeper(&i, i, cycle, WRITE); 
+                cycle_keeper(&vertices[i], i, cycle, WRITE); // &i
                 vertices[*vert_num] = i;
                 (*vert_num)++;
             }
@@ -681,8 +703,9 @@ bool general_cycle(int *vertices, int *vert_num, int cycle)
         city_info(&in_out, i, READ);
         bool op;
         op = outside_cycle(vertices, cnt, i); 
-        if(op)
+        if(op )
         {
+            assert(!inside_cycle(vertices,cnt,i));
             expand_cycle(vertices, cnt, i);
             cnt++;
             print_vertices(vertices, cnt);
@@ -995,6 +1018,15 @@ bool city_on_vertices(int i, int *const vertices, int vcnt)
 #define MAX_NEXT 10 // max 7
 int *next_city(int const *const vertices, int vcnt, int i) // TODO debug
 {
+    print_vertices(vertices,vcnt);
+    for(int i=0; i<vcnt; i++)
+    {
+        city vc;
+        city_info(&vc, vertices[i], READ);
+        printf(" %d ",vc.on_cycle);
+    }
+    printf("\n");
+
     int *next_node = calloc(MAX_NEXT, sizeof(int));
     for(int ni_ctr = 0; ni_ctr < MAX_NEXT; ni_ctr++)
         next_node[ni_ctr] = NO_CITY;
@@ -1020,33 +1052,41 @@ int *next_city(int const *const vertices, int vcnt, int i) // TODO debug
             next_node[1] = j;
     }
 
-    for(j = 0; j < CITY_NUM; j++)
+    for(j = 0; (j < vcnt) ; j++)//CITY_NUM
     {
-        city_info(&cj, j, READ);
-
+        city_info(&cj, vertices[j], READ); // vertices[j]
+        if(ci.on_cycle != cj.on_cycle)
+            continue;
+        if(i==vertices[j]) // vertices[j]
+            continue;
+        
         int i1 = (((j + 1) >= vcnt) ? 0 : (j + 1));
         int i2 = (((j - 1) < 0) ? vcnt - 1 : (j - 1));
+        city c1,c2;
+        city_info(&c1, vertices[i1], READ);
+        city_info(&c2, vertices[i2], READ);
+        assert(c1.on_cycle==c2.on_cycle);
         
-        if(ci.on_cycle == cj.on_cycle &&
-           i == vertices[j]) 
+        
+        if( i == vertices[j]) // ci.on_cycle == cj.on_cycle &&
         {
             if(next_node[2] == NO_CITY) // TODO gen this pattern
-                next_node[2] = vertices[i1]; 
+                next_node[2] = i;//vertices[i1]; 
         }
-        else if(ci.on_cycle == cj.on_cycle && i == vertices[i1]) 
+        if( i == vertices[i1]) //else
         {
             if(next_node[3] == NO_CITY)
-                next_node[3] = vertices[j];
+                next_node[3] = i;//vertices[j];
         }
-        if(ci.on_cycle == cj.on_cycle && i == vertices[j]) // TODO rotation ?
+        if(i == vertices[j]) // TODO rotation ?
         {
             if(next_node[4] == NO_CITY)
-                next_node[4] = vertices[i2];
+                next_node[4] = i;//vertices[i2];
         }
-        else if(ci.on_cycle == cj.on_cycle && i == vertices[i2])
+        if( i == vertices[i2]) // else
         {
             if(next_node[5] == NO_CITY)
-                next_node[5] = vertices[j];
+                next_node[5] = i;//vertices[j];
         }
         
     }
@@ -1113,7 +1153,12 @@ void print_keeper(void)
         nexts_keeper(nk, i, READ);
 
         for(int j = 0; j < MAX_NEXT; j++)
-            printf("%d,", nk[j]);
+        {
+            if(nk[j]!=NO_CITY)
+                printf("%d,", nk[j]);
+            else
+                printf("-,");
+        }
         printf("\n");
     }
     return;
@@ -1299,7 +1344,12 @@ void pre_search(int *vertices, int vcnt)
         nexts_keeper(nk, i, WRITE);
 
         for(int j = 0; j < MAX_NEXT; j++)
-            printf("%d,", nk[j]);
+        {
+            if(nk[j]!=NO_CITY)
+                printf("%d,", nk[j]);
+            else
+                printf("-,");
+        }
         printf("\n");
     }
 }
@@ -2555,9 +2605,13 @@ int main(void)
         vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
     int vns[MAX_CYCLES+1];
     for(j=0; j<MAX_CYCLES; j++)
+    {
         general_cycle(vertices[j],&vns[j],j+1);
+        //printf(" $$ ");
+        //print_vertices(vertices[j],vns[j]);
+    }
     print_no_cycle();
-    //for(j=MAX_CYCLES; j>1; j--)
+    
     for(j=1; j<MAX_CYCLES; j++)
         joints(j);
     for(j=0; j<MAX_CYCLES; j++)
