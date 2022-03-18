@@ -375,6 +375,7 @@ int vertex(GLfloat x, GLfloat y)
     if(cnt < 3)
         return LAST_LAYER; 
 
+    //city csi;
     city eg = {.x = x, .y = y};
     int save_i = 0;
     GLfloat min_dis = xMax + yMax;
@@ -387,11 +388,14 @@ int vertex(GLfloat x, GLfloat y)
         {
             min_dis = dis;
             save_i = i;
+            //city_info(&csi, save_i, READ);
         }
     }
     
-    //assert(prev[save_i]);
-    //prev[save_i]=false;
+    
+    //csi.on_cycle=0;
+    //city_info(&csi, save_i, WRITE);
+    
     assert(correct_index(save_i));
     return save_i;
 }
@@ -587,7 +591,7 @@ void print_vertices(int const *vertices, int vert_num)
 {
     int i;
     for(i = 0; i < vert_num; i++)
-        printf("vertices[%d] is %d ", i, vertices[i]);
+        printf("$ %d ", vertices[i]);// vertices[%d] is
     printf("\n");
 }
 
@@ -606,10 +610,12 @@ void print_no_cycle(void)
     printf("\n");
 }
 
-void expand_cycle(int *vertices, int vert_num, int out_ind)
+void expand_cycle(int *vertices, int vert_num, int out_ind /*, int cycle*/)
 {
+    assert(vert_num>=3);
+
     int i, j;
-    int e1 = NO_CITY, e2 = NO_CITY;
+    int v1 = NO_CITY, v2 = NO_CITY;
     GLfloat dis1 = xMax + yMax;
     GLfloat dis2 = xMax + yMax;
     city out_city;
@@ -630,26 +636,32 @@ void expand_cycle(int *vertices, int vert_num, int out_ind)
             city cj;
             city_info(&cj, vertices[j], READ);
 
-            if(distance(ci, out_city) < dis1 && !lines_cross(ci, out_city, ci, cj) &&
-               vertices[i] != e2) // TODO no cross
+            if(distance(ci, out_city) < dis1 && //!lines_cross(ci, out_city, ci, cj) &&
+               vertices[i] != v2) // TODO no cross
             {
                 dis1 = distance(ci, out_city);
-                e1 = vertices[i];
+                v1 = vertices[i];
             }
 
-            if(distance(cj, out_city) < dis2 && !lines_cross(cj, out_city, ci, cj) && vertices[j] != e1) 
+            if(distance(cj, out_city) < dis2 //&& !lines_cross(cj, out_city, ci, cj) 
+                && vertices[j] != v1) 
             {
                 dis2 = distance(cj, out_city);
                 
-                e2 = vertices[j];
+                v2 = vertices[j];
             }
         }
-    if(e1 == e2)
-        printf("e1 is %d e2 is %d out_ind is %d \n", e1, e2, out_ind);
-    assert(e1 != e2);
+    if(v1 == v2)
+        printf("v1 is %d v2 is %d out_ind is %d \n", v1, v2, out_ind);
+    assert(v1 != v2);
 
-    if(e2 == vertices[vert_num - 1] || e1 == vertices[vert_num - 1])
+    if(v2 == vertices[vert_num - 1] || v1 == vertices[vert_num - 1])
     {
+        /*city cout;
+        city_info(&cout, out_ind, READ);
+        cout.on_cycle=cycle;
+        city_info(&cout, out_ind, WRITE);*/
+        
         vertices[vert_num] = out_ind;
         print_vertices(vertices, vert_num + 1);
         return;
@@ -657,19 +669,26 @@ void expand_cycle(int *vertices, int vert_num, int out_ind)
     for(i = vert_num - 1; i > 0; i--)
     {
         vertices[i + 1] = vertices[i];
-        if(vertices[i] == e2 || vertices[i] == e1) 
+        if(vertices[i] == v2 || vertices[i] == v1) 
         {
             vertices[i] = out_ind;
             break;
         }
     }
 
+    /*city cout;
+    city_info(&cout, out_ind, READ);
+    cout.on_cycle=cycle;
+    city_info(&cout, out_ind, WRITE);*/
+        
     print_vertices(vertices, vert_num + 1);
+    //exit(1);
 }
 
 // TODO expand cycle 3 to more.
 bool general_cycle(int *vertices, int *vert_num, int cycle) 
 {
+    //int *vertices=*v;
     // TODO inside vertices
     *vert_num = 0;
     int i;
@@ -677,6 +696,7 @@ bool general_cycle(int *vertices, int *vert_num, int cycle)
 
     cnt = 3;
     bool er = vertex3(vertices);
+    
     if(!er)
     {
         city ci;
@@ -687,7 +707,7 @@ bool general_cycle(int *vertices, int *vert_num, int cycle)
             {
                 ci.on_cycle = cycle;
                 city_info(&ci, i, WRITE);
-                cycle_keeper(&vertices[i], i, cycle, WRITE); // &i
+                cycle_keeper(&vertices[i] , i, cycle, WRITE); // &i &vertices[i]
                 vertices[*vert_num] = i;
                 (*vert_num)++;
             }
@@ -703,11 +723,12 @@ bool general_cycle(int *vertices, int *vert_num, int cycle)
         city_info(&in_out, i, READ);
         bool op;
         op = outside_cycle(vertices, cnt, i); 
-        if(op )
+        if(op && in_out.on_cycle==NOT_OC) // added second condition
         {
             assert(!inside_cycle(vertices,cnt,i));
             expand_cycle(vertices, cnt, i);
             cnt++;
+            
             print_vertices(vertices, cnt);
         }
     }
@@ -773,8 +794,10 @@ void joints(int cycle)
             oj_cnt++;
         }
     }
-    //assert(oj_cnt >= 3); // TODO for now removed
+    
     printf("cycle is %d oj_cnt is %d j_cnt is %d\n",cycle,oj_cnt,j_cnt);
+    //assert(oj_cnt >= 3); // TODO for now removed
+    
     if(oj_cnt<=2)
     {
         
@@ -1327,13 +1350,13 @@ void pre_search(int *vertices, int vcnt)
     for(i = 0; i < CITY_NUM; i++)
     {
         nexts = next_city(vertices, vcnt, i);
-        printf("%d : nc[0] is %d nc[1] is %d sc is %d,%d,%d,%d nc[5] is %d\n", i, nexts[0], nexts[1], nexts[2],
-               nexts[3], nexts[4], nexts[5], nexts[6]);
+        printf("%d : nc[0] is %d nc[1] is %d sc is %d,%d,%d,%d nc[5] is %d\n", i, 
+            nexts[0], nexts[1], nexts[2], nexts[3], nexts[4], nexts[5], nexts[6]);
         if(city_on_vertices(i, vertices, vcnt))
             nexts_keeper(nexts, i, WRITE);
         free(nexts);
     }
-
+    
     // TODO compact nexts , sort
     printf("---\n");
     int nk[MAX_NEXT] = {-1};
@@ -2602,14 +2625,25 @@ int main(void)
     pre_search(vertices2, vn2);*/
     int j;
     int *vertices[MAX_CYCLES+1];
-    for(j=0; j<MAX_CYCLES; j++)
+    for(j=0; j<MAX_CYCLES+1; j++)
         vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
     int vns[MAX_CYCLES+1];
-    for(j=0; j<MAX_CYCLES; j++)
+    for(j=1; j<MAX_CYCLES; j++)// 0 MAX_CYCLES
     {
-        general_cycle(vertices[j],&vns[j],j+1);
-        //printf(" $$ ");
-        //print_vertices(vertices[j],vns[j]);
+        general_cycle(vertices[j],&vns[j],j); // last was j+1
+        printf(" $$ j is %d $$ ",j);
+        print_vertices(vertices[j],vns[j]);
+        printf("\n");
+        //if(gcr)
+          //  break;
+        /*printf(" ** ");
+        for(int k=0; k<MAX_NEXT; k++)
+        {
+            city cj;
+            city_info(&cj, vertices[j][k], READ);
+            printf(" %d ",cj.on_cycle);
+        }
+        printf("\n");*/
     }
     print_no_cycle();
     
@@ -2631,7 +2665,7 @@ int main(void)
     
     //free(vertices);
     //free(vertices2);
-    for(j=0; j<MAX_CYCLES; j++)
+    for(j=0; j<MAX_CYCLES+1; j++)
         free(vertices[j]);
     
     return 0;
