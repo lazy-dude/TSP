@@ -1840,7 +1840,7 @@ void fill_open(st_t * state_ptr,int ind)
     int k;
     while(state_ptr->open[j]!=NO_CITY)
         j++;
-    for(k=j; (k<MAX_NEXT); k++)//CITY_NUM
+    for(k=j; (k<MAX_NEXT+j); k++)//CITY_NUM MAX_NEXT
     {
         int gv=g_vertex[ind*MAX_NEXT+k-j];
         if(on_path(gv,state_ptr)|| on_open(gv,state_ptr))
@@ -2231,17 +2231,18 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
         
         // TODO step 3:
-        //int j;
-        for(j = 0; j < MAX_NEXT && (top!=NO_CITY); j++)//
+        
+        //for(j = 0; j < MAX_NEXT && (top!=NO_CITY); j++)//
         {
-            int ci=g_vertex[top * MAX_NEXT + j];
-            ci=top; // TODO correct above
+          //  int ci=g_vertex[top * MAX_NEXT + j];
+            int ci=top; // TODO correct above
                 
             bool op=on_path( ci,state_ptr);
             if( ci != NO_CITY && !op)
             {
                 place(ci, state_ptr);//push
                 states_keeper(state_ptr, WRITE);
+                multiple_open(state_ptr,ci);
                 //exit(1);
             }
                 
