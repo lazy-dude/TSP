@@ -1414,6 +1414,18 @@ bool all_nocity(void)//(st_t *state)
     return true;
 }
 /// --- --- --- --- --- --- --- --- --- --- --- --- --- --- ///
+int last_path(st_t * state_ptr);
+bool adj(int r, int ind);
+
+void remove_lp( st_t * state_ptr)
+{
+    int i;
+    for(i=CITY_NUM-1; i>0; i--)
+        if(state_ptr->path[i]!=NO_CITY)
+            state_ptr->path[i]=NO_CITY;
+    return;
+}
+
 //void match(st_t *states,int *si_ptr);
 void remove_city(int ci, st_t * state_ptr)
 {
@@ -1478,7 +1490,9 @@ bool equal_path(st_t* state1_ptr, st_t* state2_ptr)
 
 bool on_path(int ci, st_t * state_ptr)
 {
-    
+    //if(ci == NO_CITY)
+      //  return true;
+   // assert(ci != NO_CITY);
     int pi;
     for(pi=0; pi<CITY_NUM+1; pi++)
     {
@@ -1492,6 +1506,9 @@ bool on_path(int ci, st_t * state_ptr)
 }
 bool on_open(int ci, st_t * state_ptr)
 {
+    //if(ci==NO_CITY)
+      //  return true;
+    //assert(ci != NO_CITY);
     int pi;
     for(pi=0; pi<CITY_NUM+1; pi++)
     {
@@ -1526,8 +1543,8 @@ bool possible_next(int next_city, st_t* state_ptr)
     for(j=0; j<MAX_NEXT; j++)
     {
         int index=next_city*MAX_NEXT+j;
-        int city=g_vertex[index];
-        if(city!=NO_CITY && !on_path(city,state_ptr) && on_open(city,state_ptr))
+        int g_city=g_vertex[index];
+        if(g_city!=NO_CITY && !on_path(g_city,state_ptr) && on_open(g_city,state_ptr))
             return true;
     }
     return false;
@@ -1536,12 +1553,26 @@ bool impossible(st_t * state_ptr)
 {
     if(all_nocity())
         return true;
-        
-    int i;
-    for(i=1; i<CITY_NUM; i++)
-        if(possible_next(i,state_ptr))
-            return false;
     
+    if(state_ptr->path[1]==NO_CITY && state_ptr->open[0]!=NO_CITY)
+        return false;
+    
+    int i;
+    int lp=last_path(state_ptr);
+    st_t sbu=*state_ptr;
+    //remove_lp(state_ptr);
+    
+    //for(i=1; i<CITY_NUM; i++)
+    for(i=0; state_ptr->open[i]!=NO_CITY; i++)
+    {
+        int soi=state_ptr->open[i];
+        assert(soi!=NO_CITY);
+        //if(possible_next(soi,state_ptr)&& adj(soi,lp) )// i
+        if(!on_path(soi,state_ptr) && adj(soi,lp) )
+            return false;
+    }
+    
+    *state_ptr=sbu;
     return true;
 }
 
@@ -1880,6 +1911,7 @@ int banish(st_t * state_ptr) // TODO seems a problem here
     int lp=last_path(state_ptr);
     //GLfloat f_x=xMax+yMax;
     //for(i=0;i<CITY_NUM;i++)
+    // multiple_open
     fill_open(state_ptr,lp);
     neat_open(state_ptr);
     sort_open(state_ptr);
@@ -2135,6 +2167,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
         print_state(state_ptr);
         
+        
         /*if(i>=3 && equal(states+i,states+i-2))// TODO idle
             for(int j = CITY_NUM ; j >0 ; j--)
             {
@@ -2164,14 +2197,19 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
         assert(complement(states+i));*/
         
+        
         int top=NO_CITY;
         //if(state_ptr->path[1]==NO_CITY)// && 
             
         //else
         //if(state_ptr->path[1]!=NO_CITY)
+        
         int lp=last_path(state_ptr);
-        if(sol1_flag==0)
+        
+        
+        /*else*/ if(sol1_flag==0 )
             top=banish(state_ptr);//pop
+            
         else if (open_is_empty(state_ptr))
         {
             while(open_is_empty(all_states+i))
@@ -2205,7 +2243,21 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             neat_open(state_ptr);
             
             //continue;
-        }
+        }  
+        /*else if(impossible(state_ptr)) // TODO ongoing
+        {
+            while(impossible(all_states+i))
+                i--;
+            if(i<0)
+                break;
+            
+            remove_city(lp,all_states+i);
+            //remove_lp(all_states+i);
+            neat_open(all_states+i);
+            //sort_open(all_states+i);
+            *state_ptr=all_states[i];
+            print_state(state_ptr);
+        }*/
         
         //if(top==NO_CITY ) // TODO somehow go back and continue from there
         /*if(0)
@@ -2242,11 +2294,12 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             {
                 place(ci, state_ptr);//push
                 states_keeper(state_ptr, WRITE);
-                multiple_open(state_ptr,ci);
+                //multiple_open(state_ptr,ci);
                 //exit(1);
             }
                 
         }
+        
         
         if(full_but_last(state_ptr))
         {
@@ -2292,9 +2345,10 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         }
         
         int end_flag=0;
-        if(open_is_empty(state_ptr)&& !sol1_flag) // first solution
+        if((open_is_empty(state_ptr) )&& !sol1_flag) // first solution
         { 
             sol1_flag=1;
+            
         while(1) // TODO how to continue for more solutions ?
         // was if open_is_empty(state_ptr)
         {
