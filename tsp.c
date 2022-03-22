@@ -5,7 +5,7 @@
 //#define EXAMPLE_8
 #define EXAMPLE_50
 
-#define MAX_STATES 102 // 1000 25 15 10000 50
+#define MAX_STATES 64 // 1000 25 15 10000 50 102
 
 #include <assert.h>
 #include <math.h>
@@ -1416,6 +1416,7 @@ bool all_nocity(void)//(st_t *state)
 /// --- --- --- --- --- --- --- --- --- --- --- --- --- --- ///
 int last_path(st_t * state_ptr);
 bool adj(int r, int ind);
+void multiple_open(st_t * state_ptr,int ind);
 
 void remove_lp( st_t * state_ptr)
 {
@@ -1429,6 +1430,7 @@ void remove_lp( st_t * state_ptr)
 //void match(st_t *states,int *si_ptr);
 void remove_city(int ci, st_t * state_ptr)
 {
+    assert(ci != NO_CITY);
     int i;
     for(i=0; i<CITY_NUM; i++)
         if(state_ptr->open[i]==ci)
@@ -1721,6 +1723,7 @@ void place(int ci, st_t * state_ptr)
         if(state_ptr->path[i]==NO_CITY)
             break;
     state_ptr->path[i]=ci;
+    multiple_open(state_ptr,ci);
     
     city c0,c1,c2;
     city_info(&c0,0,READ);
@@ -2206,10 +2209,33 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
         int lp=last_path(state_ptr);
         
-        
-        /*else*/ if(sol1_flag==0 )
-            top=banish(state_ptr);//pop
+        if(sol1_flag==0 ) // TODO ongoing
+        { 
+            if(!impossible(state_ptr))
+                top=banish(state_ptr);//pop
+            else 
+            {
+                print_state(state_ptr);
+                while(impossible(all_states+i))
+                {
+                    i--;
+                }
+                if(i<0)
+                    break;
+                
+                //int lp2=last_path(all_states+i);
+                //multiple_open(all_states+i,lp);
+                //remove_lp(all_states+i);
+                remove_city(lp,all_states+i);
+                //neat_open(all_states+i);
+                //sort_open(all_states+i);
+                multiple_open(all_states+i,lp);
+                *state_ptr=all_states[i];
+                print_state(state_ptr);
+                //exit(1);
+            }
             
+        }
         else if (open_is_empty(state_ptr))
         {
             while(open_is_empty(all_states+i))
@@ -2234,17 +2260,18 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             states_keeper(state_ptr, WRITE);
             multiple_open(state_ptr,top);
             print_state(state_ptr);
-            
+            //all_states[i]=*state_ptr;
             //continue;
         }else if(!adj(state_ptr->open[0] ,lp))
         {
             //multiple_open(state_ptr,state_ptr->open[0]);
             state_ptr->open[0]=NO_CITY;
             neat_open(state_ptr);
+            //all_states[i]=*state_ptr;
             
             //continue;
         }  
-        /*else if(impossible(state_ptr)) // TODO ongoing
+        /*else if(impossible(state_ptr)) 
         {
             while(impossible(all_states+i))
                 i--;
@@ -2392,9 +2419,9 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                     //remove_city(blp,all_states+i2);//remove_city(lp,all_states+i);
                     remove_city(lp,all_states+i2);//
                     //fill_open(state_ptr,lp);
-                    neat_open(state_ptr);
-                    sort_open(state_ptr);
-                    
+                    neat_open(all_states+i2);//(state_ptr);
+                    sort_open(all_states+i2);//(state_ptr);
+                    *state_ptr=all_states[i2];
                 }
                 if(inside_flag)
                     break;
