@@ -1417,13 +1417,17 @@ bool all_nocity(void)//(st_t *state)
 int last_path(st_t * state_ptr);
 bool adj(int r, int ind);
 void multiple_open(st_t * state_ptr,int ind);
+void neat_open(st_t * state_ptr);
 
 void remove_lp( st_t * state_ptr)
 {
     int i;
     for(i=CITY_NUM-1; i>0; i--)
         if(state_ptr->path[i]!=NO_CITY)
+        {
             state_ptr->path[i]=NO_CITY;
+            break;
+        }
     return;
 }
 
@@ -2230,6 +2234,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 //neat_open(all_states+i);
                 //sort_open(all_states+i);
                 multiple_open(all_states+i,lp);
+                
                 *state_ptr=all_states[i];
                 print_state(state_ptr);
                 //exit(1);
