@@ -1919,9 +1919,10 @@ int banish(st_t * state_ptr) // TODO seems a problem here
     //GLfloat f_x=xMax+yMax;
     //for(i=0;i<CITY_NUM;i++)
     // multiple_open
-    fill_open(state_ptr,lp);
+    //fill_open(state_ptr,lp);
     neat_open(state_ptr);
     sort_open(state_ptr);
+    
     //for(i=CITY_NUM;i>0;i--)
     for(i=0;i<CITY_NUM;i++)
     {
@@ -2216,7 +2217,9 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         if(sol1_flag==0 ) // TODO ongoing
         { 
             if(!impossible(state_ptr))
+            {
                 top=banish(state_ptr);//pop
+            }
             else 
             {
                 print_state(state_ptr);
@@ -2227,7 +2230,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 if(i<0)
                     break;
                 
-                //int lp2=last_path(all_states+i);
+                //lp=last_path(state_ptr);
                 //multiple_open(all_states+i,lp);
                 //remove_lp(all_states+i);
                 remove_city(lp,all_states+i);
@@ -2238,6 +2241,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 *state_ptr=all_states[i];
                 print_state(state_ptr);
                 //exit(1);
+                
             }
             
         }
