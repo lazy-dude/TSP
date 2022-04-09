@@ -1418,6 +1418,7 @@ int last_path(st_t * state_ptr);
 bool adj(int r, int ind);
 void multiple_open(st_t * state_ptr,int ind);
 void neat_open(st_t * state_ptr);
+void sort_open(st_t * state_ptr);
 
 void remove_lp( st_t * state_ptr)
 {
@@ -1711,6 +1712,7 @@ void place(int ci, st_t * state_ptr)
     //for(i=0;i<=CITY_NUM; i++) // not already on queue 
     if( on_open(ci,state_ptr)|| on_path(ci,state_ptr))//state->queue[i]==ci
         return;
+        //exit(1);
         
     /*for(i=0; i<CITY_NUM ; i++)
     {  
@@ -1727,6 +1729,8 @@ void place(int ci, st_t * state_ptr)
         if(state_ptr->path[i]==NO_CITY)
             break;
     state_ptr->path[i]=ci;
+    //neat_open(state_ptr);
+    //sort_open(state_ptr);
     multiple_open(state_ptr,ci);
     
     city c0,c1,c2;
@@ -1903,6 +1907,7 @@ void neat_open(st_t * state_ptr)
 }
 void multiple_open(st_t * state_ptr,int ind)
 {
+    //(void)ind;
     fill_open(state_ptr,ind);
     neat_open(state_ptr);
     sort_open(state_ptr);
@@ -2023,6 +2028,8 @@ int banish(st_t * state_ptr) // TODO seems a problem here
       //  for(i=1; i<=CITY_NUM ; i++)
         //    state->queue[i-1]=state->queue[i];
     improve_open(r,state_ptr);
+    //neat_open(state_ptr);
+    //sort_open(state_ptr);
     assert(!on_path(r,state_ptr));
     
     state_ptr->step++;
@@ -2240,7 +2247,6 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 
                 *state_ptr=all_states[i];
                 print_state(state_ptr);
-                //exit(1);
                 
             }
             
@@ -2267,7 +2273,10 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             neat_open(state_ptr);
             place(top,state_ptr);
             states_keeper(state_ptr, WRITE);
+            //fill_open(state_ptr,top);
             multiple_open(state_ptr,top);
+            //neat_open(state_ptr);
+            //sort_open(state_ptr);
             print_state(state_ptr);
             //all_states[i]=*state_ptr;
             //continue;
