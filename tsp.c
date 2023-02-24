@@ -1,9 +1,10 @@
 // Originally from:
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
+// TODO call as compiler flag:
 //#define NDEBUG
 //#define EXAMPLE_8
-#define EXAMPLE_50
+//#define EXAMPLE_50
 
 #define MAX_STATES 64 // 1000 25 15 10000 50 102
 
@@ -590,6 +591,8 @@ bool outside_cycle(int *vertices, int vert_num, int io_ind)
 void print_vertices(int const *vertices, int vert_num)
 {
     int i;
+    assert(vert_num>=0);
+    assert(vert_num<=CITY_NUM);
     for(i = 0; i < vert_num; i++)
         printf("$ %d ", vertices[i]);// vertices[%d] is
     printf("\n");
@@ -2232,12 +2235,13 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 print_state(state_ptr);
                 while(impossible(all_states+i))
                 {
+                    
                     i--;
                 }
                 if(i<0)
                     break;
                 
-                //lp=last_path(state_ptr);
+                //lp=last_path(all_states+i);
                 //multiple_open(all_states+i,lp);
                 //remove_lp(all_states+i);
                 remove_city(lp,all_states+i);
@@ -2285,6 +2289,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             //multiple_open(state_ptr,state_ptr->open[0]);
             state_ptr->open[0]=NO_CITY;
             neat_open(state_ptr);
+            //sort_open(state_ptr);
             //all_states[i]=*state_ptr;
             
             //continue;
@@ -2351,7 +2356,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             print_state(state_ptr);
             int ci[CITY_NUM + 1];
             int i2=i;
-            int lr;
+            int lr=NO_CITY;
             for(i=0;i<CITY_NUM ; i++)
                 ci[i]=i;
             for(i=0; i<CITY_NUM ; i++)
@@ -2359,6 +2364,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
             for(i=0; i<CITY_NUM ; i++)
                 if(ci[i]!=NO_CITY)
                     lr=ci[i];
+            assert(lr != NO_CITY);
             assert(!on_path(lr,state_ptr));
             state_ptr->path[CITY_NUM-1]=lr;
             state_ptr->open[0]=NO_CITY;
@@ -2394,75 +2400,76 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         { 
             sol1_flag=1;
             
-        while(1) // TODO how to continue for more solutions ?
-        // was if open_is_empty(state_ptr)
-        {
-            //int lp;//=last_path(state_ptr); ,j
-            for(j=CITY_NUM-1; state_ptr->path[j]==NO_CITY; j--)
-                continue;
-            //j--;
-            if(j<=0)
+            while(1) // TODO how to continue for more solutions ?
+            // was if open_is_empty(state_ptr)
             {
-                end_flag=1;
-                break;
-            }
-            
-            lp = state_ptr->path[j];
-            assert(lp!=NO_CITY);
-            printf("lp is %d j is %d\n",lp,j);
-            
-            
-            //sort_open(all_states+i);
-            int k=j;
-            int i2=i;
-            int inside_flag=0;
-            //int j2=j;
-            for( i2=i; i2>=0 && j>=0 ; i2--) // TODO modify previous states
-            {
-                for( j=k-1; j>0 ; j--)//state_ptr->open[i2] // && !adj(lp,i2)
+                //int lp;//=last_path(state_ptr); ,j
+                for(j=CITY_NUM-1; state_ptr->path[j]==NO_CITY; j--)
+                    continue;
+                //j--;
+                if(j<=0)
                 {
-                    
-                    int blp=all_states[i2].path[j];//state_ptr->path[j];
-                    
-                    if(blp==NO_CITY)
-                        continue;
-                    assert(blp != NO_CITY);
-                    
-                    assert(lp!=blp);
-                    if( (adj(lp,blp) || adj(blp,lp)) &&(k-j>1)) //
+                    end_flag=1;
+                    break;
+                }
+            
+                lp = state_ptr->path[j];
+                assert(lp!=NO_CITY);
+                printf("lp is %d j is %d\n",lp,j);
+            
+            
+                //sort_open(all_states+i);
+                int k=j;
+                int i2=i;
+                int inside_flag=0;
+                //int j2=j;
+                for( i2=i; i2>=0 && j>=0 ; i2--) // TODO modify previous states
+                {
+                    for( j=k-1; j>0 ; j--)//state_ptr->open[i2] // && !adj(lp,i2)
                     {
-                        inside_flag=1;
-                        break;
+                    
+                        int blp=all_states[i2].path[j];//state_ptr->path[j];
+                    
+                        if(blp==NO_CITY)
+                            continue;
+                        assert(blp != NO_CITY);
+                    
+                        assert(lp!=blp);
+                        if( (adj(lp,blp) || adj(blp,lp)) &&(k-j>1)) //
+                        {
+                            inside_flag=1;
+                            break;
+                        }
+                        //remove_city(blp,all_states+i2);//remove_city(lp,all_states+i);
+                        remove_city(lp,all_states+i2);//
+                        //fill_open(state_ptr,lp);
+                        neat_open(all_states+i2);//(state_ptr);
+                        sort_open(all_states+i2);//(state_ptr);
+                        *state_ptr=all_states[i2];
                     }
-                    //remove_city(blp,all_states+i2);//remove_city(lp,all_states+i);
-                    remove_city(lp,all_states+i2);//
-                    //fill_open(state_ptr,lp);
-                    neat_open(all_states+i2);//(state_ptr);
-                    sort_open(all_states+i2);//(state_ptr);
-                    *state_ptr=all_states[i2];
+                    if(inside_flag)
+                        break;
                 }
                 if(inside_flag)
                     break;
+            
+                *state_ptr=all_states[i];
+                print_state(state_ptr);
+            
+                if(i<=0)
+                {
+                    end_flag=1;
+                    break;
+                }   
+            
+                //if(!open_is_empty(all_states+i))
+                    //  break;
+                if(!impossible(all_states+i))
+                    break;
+                i--;    
             }
-            if(inside_flag)
-                break;
-            
-            *state_ptr=all_states[i];
-            print_state(state_ptr);
-            
-            if(i<=0)
-            {
-                end_flag=1;
-                break;
-            }
-            
-            //if(!open_is_empty(all_states+i))
-              //  break;
-            if(!impossible(all_states+i))
-                break;
-            i--;    
         }
-        }
+        //if(inside_flag)
         
         //if(queue_is_empty(&states[i]))//stack
         //if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
@@ -2602,7 +2609,7 @@ void render(void) // TODO show elapsed
         GLfloat x_val = rest.x;
         GLfloat y_val = rest.y;
         
-        char name_i[100];
+        char name_i[100]={'\0'};
         sprintf(name_i, "%s %d", rest.name, i);
 
         S2D_DrawCircle(x_val, y_val, radius, sectors, 1.0, 0.0, 0.0, 1.0);
@@ -2634,7 +2641,7 @@ void render(void) // TODO show elapsed
 
     //display_text("t2", 25, 0.85 * yMax); // TODO elapsed time
     
-    char ta[80];
+    char ta[80]={'\0'};
     GLfloat dis;
     distance_keeper(&dis, READ);
     sprintf(ta, "Total distance is %.1lf cities_count is %d", dis, CITY_NUM);
@@ -2686,15 +2693,18 @@ int main(void)
 		char *p=fgets(coord,30-1,co_50);
         if(p==NULL)
             break;
-       sscanf(p,"%f,%f\n",&cc.x,&cc.y);
+        sscanf(p,"%f,%f\n",&cc.x,&cc.y);
        
-       //char name[ENOUGH];//calloc
-       names[i] = malloc(20*sizeof(char));
-       sprintf(names[i], "City_%d", i);
-       cc.name=names[i];
+        //char name[ENOUGH];//calloc
+        const int NI_CNT = 20;
+        names[i] = malloc(NI_CNT*sizeof(char));
+        for(int i2=0; i2<NI_CNT; i2++)
+            *(names[i]+i2)='\0'; // was names[i]+i2 , {'\0'}
+        sprintf(names[i], "City_%d", i);
+        cc.name=names[i];
        
-       city_info(&cc,i,WRITE);
-       i++;
+        city_info(&cc,i,WRITE);
+        i++;
     }
 	
 	fclose(co_50);
@@ -2727,7 +2737,7 @@ int main(void)
     int *vertices[MAX_CYCLES+1];
     for(j=0; j<MAX_CYCLES+1; j++)
         vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
-    int vns[MAX_CYCLES+1];
+    int vns[MAX_CYCLES+1]={0}; // ={0};
     for(j=1; j<MAX_CYCLES; j++)// 0 MAX_CYCLES
     {
         general_cycle(vertices[j],&vns[j],j); // last was j+1
