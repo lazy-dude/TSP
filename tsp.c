@@ -10,20 +10,38 @@
 
 #include <assert.h>
 #include <math.h>
-#include <simple2d.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+
+//#include <simple2d.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL2/SDL_ttf.h>
+const char *title = "TSP problem , graph theory";
+#define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf"
+//#define FONT "/usr/local/share/agar/fonts/monoalgue.ttf"
+const SDL_Color bg={255, 255, 255,255};//{32, 32, 32, 0xFF}; // background
+const SDL_Color pol={200, 200, 200, 0xFF}; // polygon
+const SDL_Color white = {255, 255, 255,255};
+const SDL_Color black = {0, 0, 0,255};
+#define LINE_COLOR 0xFF0FFFF0
+#define POINT_SIZE 512
+//#define X_MAX 1 
+//#define Y_MAX 1
+//#define CITY_NUM 2
+
 
 #ifdef EXAMPLE_8
-#define xMax 800 
-#define yMax 600 
+#define X_MAX 800 
+#define Y_MAX 600 
 #define CITY_NUM 8 // TODO compute it , many random cities.
 #endif
 
 #ifdef EXAMPLE_50
-#define xMax 1000 
-#define yMax 1000
+#define X_MAX 1000 
+#define Y_MAX 1000
 #define CITY_NUM 50
 #endif
 
@@ -42,12 +60,12 @@ enum RW
     WRITE
 }; // TODO add FREE
 const int sectors = 500;
-GLfloat radius = 5.0;
+float radius = 5.0;
 struct city
 {
     char *name;
-    GLfloat x;
-    GLfloat y;
+    float x;
+    float y;
     // visited
     bool visited;
     int on_cycle;
@@ -59,7 +77,8 @@ typedef struct city city;
 
 // ************************************************ //
 
-void display_text(char *in_text, GLfloat x, GLfloat y);
+//void display_text(char *in_text, float x, float y);
+void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text);
 
 bool correct_index(int i)
 {
@@ -69,9 +88,9 @@ bool correct_index(int i)
     return false;
 }
 
-void distance_keeper(GLfloat *dis, enum RW rw)
+void distance_keeper(float *dis, enum RW rw)
 {
-    static GLfloat kdis = 0;
+    static float kdis = 0;
 
     if(rw == READ)
         *dis = kdis;
@@ -85,57 +104,57 @@ void city_info(city *out_c, int cnum, enum RW rw)
     assert(correct_index(cnum));
     static city cities[CITY_NUM] = {
         
-        {.x = xMax * 0.47,
-         .y = yMax * 0.03,
+        {.x = X_MAX * 0.47,
+         .y = Y_MAX * 0.03,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
          .name = "Lille"}, // Beginning city
-        {.x = xMax * 0.51,
-         .y = yMax * 0.15,
+        {.x = X_MAX * 0.51,
+         .y = Y_MAX * 0.15,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
          .name = "Paris"},
-        {.x = xMax * 0.8,
-         .y = yMax * 0.06,
+        {.x = X_MAX * 0.8,
+         .y = Y_MAX * 0.06,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
          .name = "Reims"},
-        {.x = xMax * 0.7,
-         .y = yMax * 0.65,
+        {.x = X_MAX * 0.7,
+         .y = Y_MAX * 0.65,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
          .name = "Lyon"},
-        {.x = xMax * 0.9,
-         .y = yMax * 0.7,
+        {.x = X_MAX * 0.9,
+         .y = Y_MAX * 0.7,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
          .name = "Marseille"},
-        {.x = xMax * 0.15,
-         .y = yMax * 0.3,
+        {.x = X_MAX * 0.15,
+         .y = Y_MAX * 0.3,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
          .name = "Nantes"},
-        {.x = xMax * 0.05,
-         .y = yMax * 0.42,
+        {.x = X_MAX * 0.05,
+         .y = Y_MAX * 0.42,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
          .name = "La Rochelle"},
-        {.x = xMax * 0.2,
-         .y = yMax * 0.59,
+        {.x = X_MAX * 0.2,
+         .y = Y_MAX * 0.59,
          .visited = false,
          .on_cycle = NOT_OC,
          .joint = NO_CITY,
@@ -154,11 +173,11 @@ void city_info(city *out_c, int cnum, enum RW rw)
     
 }
 
-GLfloat distance(city from, city to)
+float distance(city from, city to)
 {
-    GLfloat dis = 0.0;
-    GLfloat dx = fabsf(to.x - from.x);
-    GLfloat dy = fabsf(to.y - from.y);
+    float dis = 0.0;
+    float dx = fabsf(to.x - from.x);
+    float dy = fabsf(to.y - from.y);
 
     dis = sqrt(pow(dx, 2) + pow(dy, 2));
 
@@ -230,7 +249,7 @@ int nearest(int since)
     }
     
     int i, save_i = 0;
-    GLfloat dis = xMax + yMax;
+    float dis = X_MAX + Y_MAX;
     city out_c;
 
     for(i = 0; i < CITY_NUM; i++) 
@@ -241,7 +260,7 @@ int nearest(int since)
             continue;
         }
 
-        GLfloat curr_dis = distance(out_c_s, out_c);
+        float curr_dis = distance(out_c_s, out_c);
         if(curr_dis < dis)
         {
             dis = curr_dis;
@@ -314,10 +333,11 @@ void produce_ways(void)
 
         cn.next_i = next; 
 
-        GLfloat dis = distance(cn, cn2);
+        float dis = distance(cn, cn2);
         distance_keeper(&dis, WRITE);
 
-        display_text("t1 inside loop", 25, 0.8 * yMax);
+        // TODO m add this again
+        //display_text("t1 inside loop", 25, 0.8 * Y_MAX);
         
     }
     return;
@@ -344,9 +364,9 @@ void last_draw(void)
     city cn;
     city_info(&cn, 0, READ); 
 
-    GLfloat pre_dis;
+    float pre_dis;
     distance_keeper(&pre_dis, READ);
-    GLfloat dis = distance(ci, cn);
+    float dis = distance(ci, cn);
     distance_keeper(&dis, WRITE);
 
     last_i = i;
@@ -356,7 +376,7 @@ void last_draw(void)
 // ************************************************ //
 void print_vertices(int const *vertices, int vert_num);
 
-int vertex(GLfloat x, GLfloat y)
+int vertex(float x, float y)
 {
     //static bool prev[CITY_NUM+1]={false};
     //static int pi=0;
@@ -379,12 +399,12 @@ int vertex(GLfloat x, GLfloat y)
     //city csi;
     city eg = {.x = x, .y = y};
     int save_i = 0;
-    GLfloat min_dis = xMax + yMax;
+    float min_dis = X_MAX + Y_MAX;
     city ci; 
     for(i = 0; i < CITY_NUM; i++)
     {
         city_info(&ci, i, READ);
-        GLfloat dis = distance(ci, eg);
+        float dis = distance(ci, eg);
         if(dis < min_dis && ci.on_cycle == NOT_OC )//&& prev[i]==true) 
         {
             min_dis = dis;
@@ -404,9 +424,9 @@ int vertex(GLfloat x, GLfloat y)
 bool vertex3(int *v3)
 {
     
-    v3[0] = vertex(xMax /2.0 , 0.0);
-    v3[1] = vertex(0.0, yMax);
-    v3[2] = vertex(xMax, yMax);
+    v3[0] = vertex(X_MAX /2.0 , 0.0);
+    v3[1] = vertex(0.0, Y_MAX);
+    v3[2] = vertex(X_MAX, Y_MAX);
     //assert(v3[0]!=v3[1] || v3[0]==LAST_LAYER || v3[1]==LAST_LAYER);
     //assert(v3[1]!=v3[2] || v3[1]==LAST_LAYER || v3[2]==LAST_LAYER);
     //assert(v3[0]!=v3[2] || v3[0]==LAST_LAYER || v3[2]==LAST_LAYER);
@@ -426,14 +446,14 @@ bool lines_cross(city c1, city c2, city c3, city c4)
     
     
     assert(c2.x != c1.x);
-    GLfloat a = (c2.y - c1.y) / (c2.x - c1.x);
-    GLfloat b = c1.y - a * c1.x;
+    float a = (c2.y - c1.y) / (c2.x - c1.x);
+    float b = c1.y - a * c1.x;
 
     assert(c4.x != c3.x);
-    GLfloat c = (c4.y - c3.y) / (c4.x - c3.x);
-    GLfloat d = c3.y - c * c3.x;
+    float c = (c4.y - c3.y) / (c4.x - c3.x);
+    float d = c3.y - c * c3.x;
 
-    GLfloat x, y;
+    float x, y;
     
     //assert(a != c); // TODO temporarely removed
     if(a==c)
@@ -464,8 +484,8 @@ bool inside_cycle(int *vertices, int vert_num, int io_ind) // TODO instead of li
         return false;
     
     int i,j;
-    GLfloat v_dis =0.0;
-    GLfloat io_dis=0.0;
+    float v_dis =0.0;
+    float io_dis=0.0;
     for(i=0; i<vert_num; i++)   
     {
         for(j=0; j<vert_num; j++)
@@ -619,8 +639,8 @@ void expand_cycle(int *vertices, int vert_num, int out_ind /*, int cycle*/)
 
     int i, j;
     int v1 = NO_CITY, v2 = NO_CITY;
-    GLfloat dis1 = xMax + yMax;
-    GLfloat dis2 = xMax + yMax;
+    float dis1 = X_MAX + Y_MAX;
+    float dis2 = X_MAX + Y_MAX;
     city out_city;
     city_info(&out_city, out_ind, READ);
     assert(!inside_cycle(vertices, vert_num, out_ind));
@@ -803,7 +823,8 @@ void joints(int cycle)
     
     if(oj_cnt<=2)
     {
-        
+        free(in_joint);
+        free(out_joint);
         return;
     }
 
@@ -815,7 +836,7 @@ void joints(int cycle)
         city_info(&cji, in_joint[0], READ);
 
         city_info(&cjo, out_joint[0], READ);
-        GLfloat dis1 = distance(cji, cjo);
+        float dis1 = distance(cji, cjo);
         cjo.joint = in_joint[0];
         city_info(&cjo, out_joint[0], WRITE);
 
@@ -841,7 +862,7 @@ void joints(int cycle)
         city_info(&cji, in_joint[0], READ);
 
         city_info(&cjo, out_joint[0], READ);
-        GLfloat dis2 = distance(cji, cjo);
+        float dis2 = distance(cji, cjo);
         cjo.joint = in_joint[0];
         city_info(&cjo, out_joint[0], WRITE);
         for(i = 0; i < oj_cnt; i++)
@@ -864,7 +885,7 @@ void joints(int cycle)
         city cji, cjo;
         city_info(&cji, in_joint[0], READ);
         city_info(&cjo, out_joint[0], READ);
-        GLfloat dis1 = distance(cji, cjo); // TODO dis=MAX_DIST
+        float dis1 = distance(cji, cjo); // TODO dis=MAX_DIST
         int chosen_ci = in_joint[0];
 
         cjo.joint = in_joint[0];
@@ -930,7 +951,7 @@ void joints(int cycle)
         if(cji.joint != NO_CITY)
             city_info(&cji, in_joint[1], READ);
 
-        GLfloat dis2 = distance(cji, cjo);
+        float dis2 = distance(cji, cjo);
         for(i = 0; i < oj_cnt; i++)
             for(j = 0; j < j_cnt; j++)
             {
@@ -995,7 +1016,7 @@ void joints(int cycle)
         {
             city_info(&cjo, out_joint[i], READ);
             city_info(&cji, in_joint[0], READ);
-            GLfloat dis3 = distance(cjo,cji);
+            float dis3 = distance(cjo,cji);
             if(cjo.joint == NO_CITY)
             {
                 for(j=0; j<j_cnt; j++)
@@ -1221,9 +1242,9 @@ struct st_t
     int open[CITY_NUM+1];
     
     int step; // TODO steps in path
-    GLfloat g; // g dist
-    GLfloat h;
-    GLfloat f;
+    float g; // g dist
+    float h;
+    float f;
 };
 typedef struct st_t st_t;
 
@@ -1781,22 +1802,22 @@ void improve_open(int extra ,st_t * state_ptr)
         }
     }
 }
-/*GLfloat h(int ci) // TODO try other heuristics
+/*float h(int ci) // TODO try other heuristics
 {
     if(ci==NO_CITY)
-        return xMax+yMax;//-10
+        return X_MAX+Y_MAX;//-10
     city cc,c0;
     city_info(&cc, ci, READ);
     city_info(&c0, 0, READ);
-    GLfloat dist=distance(cc,c0);
+    float dist=distance(cc,c0);
     return dist;
     
 }*/
-/*GLfloat g(st_t const * const state)
+/*float g(st_t const * const state)
 {
     return state->g;
 }
-GLfloat f(st_t const * const state)
+float f(st_t const * const state)
 {
     return state->f;//g(state)+h(ci);
 }*/
@@ -1810,8 +1831,8 @@ int compare(const void* a, const void* b)
         return 0;
     assert(arg1 != arg2);
  
-    GLfloat f1;//=xMax+yMax;//= .f;
-    GLfloat f2;//=xMax+yMax;
+    float f1;//=X_MAX+Y_MAX;//= .f;
+    float f2;//=X_MAX+Y_MAX;
     st_t state_i;
     //states_keeper(&state0, 0, READ);
     city c0,c1,c2;
@@ -1824,16 +1845,16 @@ int compare(const void* a, const void* b)
     {
         //states_keeper(&state_i, i, READ);
         states_keeper(&state_i, READ);
-        GLfloat g=state_i.g;
+        float g=state_i.g;
         int lp=last_path(&state_i);
         
         city lc;
         city_info(&lc,lp,READ);
-        GLfloat g1 = g+distance(lc,c1);
-        GLfloat g2 = g+distance(lc,c2);
+        float g1 = g+distance(lc,c1);
+        float g2 = g+distance(lc,c2);
         
-        GLfloat h1= distance(c1,c0); // TODO better h ?
-        GLfloat h2= distance(c2,c0);
+        float h1= distance(c1,c0); // TODO better h ?
+        float h2= distance(c2,c0);
         
         f1=g1+h1;
         f2=g2+h2;
@@ -1856,11 +1877,11 @@ void sort_open(st_t * state_ptr)
 {
     printf("++++ entered sort_open ++++\n");
     print_state(state_ptr);
-    //GLfloat f_x[CITY_NUM+1];
+    //float f_x[CITY_NUM+1];
     int i;
     //for(i=0; i<CITY_NUM+1; i++)
         //f_x[i]=f(state,state->open[i]);
-    int open[CITY_NUM+1];
+    int open[CITY_NUM+1]={0}; // m init
     for(i=0; i<CITY_NUM+1; i++)
         open[i]=state_ptr->open[i];
         
@@ -1921,10 +1942,10 @@ int banish(st_t * state_ptr) // TODO seems a problem here
     printf("@@@ entered banish @@@\n");
     print_state(state_ptr);
     
-    int r;
+    int r=0; // m init
     int i;
     int lp=last_path(state_ptr);
-    //GLfloat f_x=xMax+yMax;
+    //float f_x=X_MAX+Y_MAX;
     //for(i=0;i<CITY_NUM;i++)
     // multiple_open
     //fill_open(state_ptr,lp);
@@ -2120,7 +2141,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     st_t *all_states = calloc(MAX_STATES+1, sizeof(st_t)); // TODO single state ?
     st_t *state_ptr = calloc(1, sizeof(st_t));
     
-    GLfloat min_dist;
+    float min_dist;
     distance_keeper(&min_dist, READ);
     int path0[CITY_NUM+1]={NO_CITY};
     path0[0]=0;
@@ -2486,13 +2507,15 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         , min_dist,max_i,i,best_changed,solutions);
     print_path(best_path);
 
+    free(best_path);
+    free(all_states);
     free(state_ptr);
     return;
 }
 
 // ************************************************ //
 // TODO draw cycle
-void show_cycle2(int on_cycle)
+void show_cycle2(SDL_Renderer *renderer, int on_cycle)
 {
     int i, j;
     int base_0, base_i, base_j;
@@ -2511,13 +2534,21 @@ void show_cycle2(int on_cycle)
             cycle_keeper(&base_j, j, on_cycle, READ);
             city_info(&c3, base_j, READ);
 
-            S2D_DrawTriangle(c1.x, c1.y, 0, 0, 0, 0.1, c2.x, c2.y, 0, 0, 0, 0.1, c3.x, c3.y, 0, 0, 0, 0.1);
+            //S2D_DrawTriangle(c1.x, c1.y, 0, 0, 0, 0.1, c2.x, c2.y, 0, 0, 0, 0.1, c3.x, c3.y, 0, 0, 0, 0.1);
+            SDL_Vertex vertices[]=
+            {
+                { {c1.x, c1.y}, pol, { 0,0 } },// { 255, 0, 0, 255 }
+                { {c2.x, c2.y}, pol, { 0,0 } },
+                { {c3.x, c3.y}, pol, { 0,0 }}
+            };
+            SDL_RenderGeometry(renderer,NULL, vertices,3,NULL,0);
+            
             break;
         }
     }
 }
 
-void show_cycle(int on_cycle) 
+void show_cycle(SDL_Renderer *renderer,int on_cycle) 
 {
     int i, j, base_i;
 
@@ -2558,40 +2589,67 @@ void show_cycle(int on_cycle)
             if(c3.on_cycle != on_cycle)
                 continue;
 
-            S2D_DrawTriangle(c1.x, c1.y, 0, 0, 0, 0.1, c2.x, c2.y, 0, 0, 0, 0.1, c3.x, c3.y, 0, 0, 0, 0.1);
+            //S2D_DrawTriangle(c1.x, c1.y, 0, 0, 0, 0.1, c2.x, c2.y, 0, 0, 0, 0.1, c3.x, c3.y, 0, 0, 0, 0.1);
+            SDL_Vertex vertices[]=
+            {
+                { {c1.x, c1.y}, pol, { 0,0 } },// { 255, 0, 0, 255 }
+                { {c2.x, c2.y}, pol, { 0,0 } },
+                { {c3.x, c3.y}, pol, { 0,0 }}
+            };
+            SDL_RenderGeometry(renderer,NULL, vertices,3,NULL,0);
             
         }
     }
 }
 
-void display_text(char *in_text, GLfloat x, GLfloat y)
+//void display_text(char *in_text, float x, float y)
+void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text)
 {
     
-    assert(strlen(in_text) <= 60);
-    S2D_Text *text = S2D_CreateText("/usr/share/fonts/gnu-free/FreeSans.ttf", in_text, 15);
-    text->x = x + 10; // 50
+    assert(strlen(text) <= 60);
+    /*S2D_Text *text = S2D_CreateText("/usr/share/fonts/gnu-free/FreeSans.ttf", in_text, 15);
+    text->x = x + 10; 
     text->y = y; 
     text->color.r = 0.0;
     text->color.g = 0.0;
     text->color.b = 0.0;
     text->color.a = 1.0;
     S2D_DrawText(text);
-    S2D_FreeText(text);
+    S2D_FreeText(text);*/
+    
+    SDL_Surface * ts = TTF_RenderUTF8_Blended(font, text, black);
+    SDL_Texture* tx=SDL_CreateTextureFromSurface(renderer,ts);
+    int width = strlen(text)*8;
+    SDL_Rect rec={.x=x-20, .y=y-20, .w=width, .h=15};
+    SDL_RenderCopy(renderer, tx, NULL, &rec);
 }
+/*
+void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text)
+{
+    
+    //gfxPrimitivesSetFont( ,20,20);
+    SDL_Surface * ts = TTF_RenderUTF8_Blended(font, text, white);
+    SDL_Texture* tx=SDL_CreateTextureFromSurface(renderer,ts);
+    
+    SDL_Rect rec={.x=x-10, .y=y-10, .w=30, .h=20};
+    SDL_RenderCopy(renderer, tx, NULL, &rec);//&src, &dst)
+    //stringColor(renderer, x, y, text, 0xFFAABBCC); 
+}*/
 
-void render(void) // TODO show elapsed
+void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
 {
     
     city start_end;
     city_info(&start_end, 0, READ); // begin from here
-    GLfloat x = start_end.x;
-    GLfloat y = start_end.y;
-    GLfloat dis0 = 0;
+    float x = start_end.x;
+    float y = start_end.y;
+    float dis0 = 0;
     distance_keeper(&dis0, WRITE);
 
-    S2D_DrawCircle(x, y, radius, sectors, 0.0, 0.0, 1.0, 1.0);
+    //S2D_DrawCircle(x, y, radius, sectors, 0.0, 0.0, 1.0, 1.0);
+    filledCircleColor(renderer,  x,  y, 9, 0xFF0000FF);
 
-    S2D_Text *beg_text = S2D_CreateText("/usr/share/fonts/gnu-free/FreeSans.ttf", start_end.name, 15); // TODO common font
+    /*S2D_Text *beg_text = S2D_CreateText("/usr/share/fonts/gnu-free/FreeSans.ttf", start_end.name, 15);
     beg_text->x = x + 10;
     beg_text->y = y;
     beg_text->color.r = 0.1;
@@ -2599,22 +2657,26 @@ void render(void) // TODO show elapsed
     beg_text->color.b = 0.1;
     beg_text->color.a = 1.0;
     S2D_DrawText(beg_text);
-    S2D_FreeText(beg_text);
-
+    S2D_FreeText(beg_text);*/
+    render_text(renderer, font, x+10, y, start_end.name);
+    
     int i;
     for(i = 1; i < CITY_NUM; i++) // TODO separate function draw circles
     {
         city rest;
         city_info(&rest, i, READ);
-        GLfloat x_val = rest.x;
-        GLfloat y_val = rest.y;
+        float x_val = rest.x;
+        float y_val = rest.y;
         
-        char name_i[100]={'\0'};
-        sprintf(name_i, "%s %d", rest.name, i);
+        //char name_i[100]={'\0'};
+        //sprintf(name_i, "%s %d", rest.name, i);
+        //snprintf(name_i,99, "%s %d", rest.name, i);
 
-        S2D_DrawCircle(x_val, y_val, radius, sectors, 1.0, 0.0, 0.0, 1.0);
+        //S2D_DrawCircle(x_val, y_val, radius, sectors, 1.0, 0.0, 0.0, 1.0);
+        filledCircleColor(renderer,  x_val,  y_val, 7, 0xFF00FF00);
         
-        display_text(name_i, x_val, y_val);
+        //display_text(name_i, x_val, y_val);
+        render_text(renderer, font, x_val,  y_val, rest.name);//name_i);
     }
 
     int nolines = 1;
@@ -2626,26 +2688,29 @@ void render(void) // TODO show elapsed
         next = from.next_i; 
         city_info(&to, next, READ);
         
-        GLfloat width = 2.0;
-        S2D_DrawLine(from.x, from.y, to.x, to.y, width, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2,
-                     1.0, 0.2, 1.0);
+        //float width = 2.0;
+        //S2D_DrawLine(from.x, from.y, to.x, to.y, width, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2,
+          //           1.0, 0.2, 1.0);
+        thickLineColor(renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
         
     }
 
     city c0, cl;
     city_info(&c0, 0, READ);
     city_info(&cl, last_i, READ);
-    GLfloat width = 2.0;
-    S2D_DrawLine(c0.x, c0.y, cl.x, cl.y, width, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
-                 0.0, 1.0);
-
-    //display_text("t2", 25, 0.85 * yMax); // TODO elapsed time
+    //float width = 2.0;
+    //S2D_DrawLine(c0.x, c0.y, cl.x, cl.y, width, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
+      //           0.0, 1.0);
+    thickLineColor(renderer,c0.x, c0.y, cl.x, cl.y, 2, LINE_COLOR) ;
+    //display_text("t2", 25, 0.85 * Y_MAX); // TODO elapsed time
     
     char ta[80]={'\0'};
-    GLfloat dis;
+    float dis;
     distance_keeper(&dis, READ);
-    sprintf(ta, "Total distance is %.1lf cities_count is %d", dis, CITY_NUM);
-    display_text(ta, 50, 0.9 * yMax);
+    //sprintf(ta, "Total disprintfstance is %.1lf cities_count is %d", dis, CITY_NUM);
+    snprintf(ta, 79,"Total distance is %.1lf cities_count is %d", dis, CITY_NUM);
+    //display_text(ta, 50, 0.9 * Y_MAX);
+    render_text(renderer, font, 50,  0.95 * Y_MAX, ta);
 
     int *v3 = calloc(CITY_NUM + 1, sizeof(int));
     vertex3(v3);
@@ -2654,9 +2719,16 @@ void render(void) // TODO show elapsed
     city_info(&c1, v3[0], READ);
     city_info(&c2, v3[1], READ);
     city_info(&c3, v3[2], READ);
-    S2D_DrawTriangle(c1.x, c1.y, 0, 0, 0, 0.2, c2.x, c2.y, 0, 0, 0, 0.2, c3.x, c3.y, 0, 0, 0, 0.2);
+    //S2D_DrawTriangle(c1.x, c1.y, 0, 0, 0, 0.2, c2.x, c2.y, 0, 0, 0, 0.2, c3.x, c3.y, 0, 0, 0, 0.2);
+    SDL_Vertex vertices[]=
+    {
+        { {c1.x, c1.y}, pol, { 0,0 } },// { 255, 0, 0, 255 }
+        { {c2.x, c2.y}, pol, { 0,0 } },
+        { {c3.x, c3.y}, pol, { 0,0 }}
+    };
+    SDL_RenderGeometry(renderer,NULL, vertices,3,NULL,0);
     
-    show_cycle2(1); 
+    //show_cycle2(renderer,1); 
 
     free(v3);
 }
@@ -2666,6 +2738,41 @@ void update(void)
 }
 
 // ************************************************ //
+void sdl_init(SDL_Window **window,SDL_Renderer **renderer,TTF_Font **font)
+{
+    if (SDL_Init(SDL_INIT_VIDEO))
+    {
+        fprintf (stderr,"SDL_Init Error: %s", SDL_GetError());
+        exit (1);
+    }
+
+    *window = SDL_CreateWindow(title, 100, 100, X_MAX, Y_MAX, SDL_WINDOW_OPENGL);
+    if (*window == NULL)
+    {
+        fprintf (stderr,"SDL_CreateWindow Error: %s", SDL_GetError());
+        SDL_Quit();
+        exit (2);
+    }
+
+    *renderer = SDL_CreateRenderer(*window, -1, 0);//SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (*renderer == NULL)
+    {
+        SDL_DestroyWindow(*window);
+        fprintf (stderr,"SDL_CreateRenderer Error: %s", SDL_GetError());
+        SDL_Quit();
+        exit (3);
+    }
+    int ttfr=TTF_Init();
+    if(ttfr!=0)
+        exit (4);
+    *font = TTF_OpenFont(FONT, POINT_SIZE);
+    if (*font==NULL) {
+        fprintf(stderr, "The font could not be opened! %s\n", TTF_GetError());
+        SDL_Quit();
+        exit (5);
+    }
+}
+
 int main(void)
 {
     assert(CITY_NUM >= 3);
@@ -2707,13 +2814,14 @@ int main(void)
         i++;
     }
 	
+	// TODO free names[i]
 	fclose(co_50);
 #endif
 
-    const S2D_Color color = {0.9, 0.9, 0.9, 1.0};
-    char *title = "TSP problem , graph theory";
+    //const S2D_Color color = {0.9, 0.9, 0.9, 1.0};
+    //char *title = "TSP problem , graph theory";
     
-    GLfloat dis;
+    float dis;
     distance_keeper(&dis, READ);
     produce_ways(); 
     
@@ -2764,19 +2872,51 @@ int main(void)
     
     A_star_algorithm();
 
-    S2D_Window *window = S2D_CreateWindow(title, xMax, yMax, NULL, render, 0 // TODO remove update: NULL
+    /*
+    S2D_Window *window = S2D_CreateWindow(title, X_MAX, Y_MAX, NULL, render, 0 // TODO remove update: NULL
     );
     window->background = color;
     window->frames = 1;
-
     S2D_Show(window);
-
     S2D_FreeWindow(window);
-    
+    */
+    SDL_Window *window=NULL;
+    SDL_Renderer *renderer=NULL;
+    TTF_Font *font=NULL;
+    sdl_init(&window,&renderer,&font);
+    SDL_Event event;
+    //bool quit = false;
+    //while (quit==false)
+    {
+        //printf("%d\n",quit); 
+        /*while (SDL_PollEvent(&event))
+            if (event.type == SDL_QUIT)
+            {
+                quit = true;
+                break;
+            }*/
+        //if(quit==true)
+            //break;
+        
+        SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
+        SDL_RenderClear(renderer);
+        render(renderer, font);
+        SDL_RenderPresent(renderer);
+        //SDL_Delay(50);
+    }
+    while (SDL_WaitEvent(&event))
+        if (event.type == SDL_QUIT)
+            break;
+            
     //free(vertices);
     //free(vertices2);
     for(j=0; j<MAX_CYCLES+1; j++)
         free(vertices[j]);
+    
+    TTF_CloseFont(font);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
     
     return 0;
 }
