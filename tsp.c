@@ -40,8 +40,8 @@ const SDL_Color black = {0, 0, 0,255};
 #endif
 
 #ifdef EXAMPLE_50
-#define X_MAX 1000 
-#define Y_MAX 1000
+#define X_MAX 900//1000 
+#define Y_MAX 700//1000
 #define CITY_NUM 50
 #endif
 
