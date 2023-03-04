@@ -88,6 +88,18 @@ bool correct_index(int i)
     return false;
 }
 
+void low_dist(float *dis, enum RW rw)
+{
+    static float md = FLT_MAX;
+    
+    if(rw == READ)
+        *dis = md;
+    else // WRITE
+        if(*dis<md)
+            md=*dis;
+    return;
+}
+
 void distance_keeper(float *dis, enum RW rw)
 {
     static float kdis = 0;
@@ -606,6 +618,30 @@ bool outside_cycle(int *vertices, int vert_num, int io_ind)
     }
     r = !inside_cycle(vertices, vert_num, io_ind);
     return r;
+}
+
+void print_nexts(void)
+{
+    city c0;
+    int prev_i=0;
+    city_info(&c0,0,READ);
+    int next_i=c0.next_i;
+    for(int n=0; n< CITY_NUM; n++)
+    {
+        printf("prev_i is %d next_i is %d\n",prev_i,next_i);
+    
+        city from,to;
+        city_info(&from, prev_i, READ);
+        prev_i=from.next_i;
+        city_info(&to, next_i, READ);//j+1
+        //best_path[i] = next; 
+        //next = ci.next_i;
+        //cj.next_i=best_path[j+1];
+        //city_info(&cj, j, WRITE);
+        prev_i=next_i;
+        next_i=to.next_i;
+        
+    }
 }
 
 void print_vertices(int const *vertices, int vert_num)
@@ -2406,12 +2442,20 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         }
         
         if(path_is_full(state_ptr))
+        {
             solutions++;
+            
+        }
         
         if(path_is_full(state_ptr) && state_ptr->g<min_dist) // better solution found
         {
             best_changed++;
             min_dist=state_ptr->g;
+            //float cur_dist;
+            //distance_keeper(&cur_dist, READ);
+            //if(min_dist<cur_dist)
+            //distance_keeper(&min_dist, WRITE);
+            low_dist(&min_dist, WRITE);
             for( j = 0; j < CITY_NUM + 1; j++)
                 best_path[j] = (state_ptr)->path[j];
         }
@@ -2503,9 +2547,38 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
     }
     
+    print_nexts();
+    for(int j=0; j< CITY_NUM; j++)
+    {
+        city cj;
+        city_info(&cj, best_path[j], READ);
+        //best_path[i] = next; 
+        //next = ci.next_i;
+        cj.next_i=best_path[j+1];
+        city_info(&cj, best_path[j], WRITE);
+        //printf("n is %d ",cj.next_i);
+    }
+    //city cj;
+    //city_info(&cj, CITY_NUM-1, READ);
+    //cj.next_i=0;
+    //city_info(&cj, CITY_NUM-1, WRITE);
+    for(int j=0; j< CITY_NUM; j++)
+    {
+        city cj;
+        city_info(&cj, j, READ);
+        //best_path[i] = next; 
+        //next = ci.next_i;
+        //cj.next_i=best_path[j+1];
+        //city_info(&cj, j, WRITE);
+        printf("n is %d ",cj.next_i);
+    }
+    printf("\n");
+    print_nexts();
+    
     printf("min_dist is %.1lf max_i is %d i is %d bc is %d solutions: %d\n"
         , min_dist,max_i,i,best_changed,solutions);
     print_path(best_path);
+    
 
     free(best_path);
     free(all_states);
@@ -2606,7 +2679,7 @@ void show_cycle(SDL_Renderer *renderer,int on_cycle)
 void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text)
 {
     
-    assert(strlen(text) <= 60);
+    assert(strlen(text) <= 80);
     /*S2D_Text *text = S2D_CreateText("/usr/share/fonts/gnu-free/FreeSans.ttf", in_text, 15);
     text->x = x + 10; 
     text->y = y; 
@@ -2658,7 +2731,9 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
     beg_text->color.a = 1.0;
     S2D_DrawText(beg_text);
     S2D_FreeText(beg_text);*/
-    render_text(renderer, font, x+10, y, start_end.name);
+    char se_text[80]={'\0'};
+    snprintf(se_text, 79,"%s(%d)", start_end.name, start_end.on_cycle);
+    render_text(renderer, font, x+10, y, se_text);//start_end.name);
     
     int i;
     for(i = 1; i < CITY_NUM; i++) // TODO separate function draw circles
@@ -2676,37 +2751,79 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
         filledCircleColor(renderer,  x_val,  y_val, 7, 0xFF00FF00);
         
         //display_text(name_i, x_val, y_val);
-        render_text(renderer, font, x_val,  y_val, rest.name);//name_i);
+        char all_text[80]={'\0'};
+        snprintf(all_text, 79,"%s(%d)", rest.name, rest.on_cycle);
+        render_text(renderer, font, x_val,  y_val, all_text);//rest.name);//name_i);
     }
 
-    int nolines = 1;
-    int next = 0;
-    for(i = 0; nolines < CITY_NUM; nolines++, i = next) 
+    //int nolines = 1;
+    //int next = -1;
+    //i=0;
+    //for(i = 0; nolines < CITY_NUM; nolines++, i = next) 
+    /*for(i = 0; next; i = next) 
     {
         city from, to;
         city_info(&from, i, READ);
         next = from.next_i; 
         city_info(&to, next, READ);
+        next = to.next_i;
         
         //float width = 2.0;
         //S2D_DrawLine(from.x, from.y, to.x, to.y, width, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2,
           //           1.0, 0.2, 1.0);
         thickLineColor(renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
+        printf("i is %d next is %d\n",i,next);
+        //if(next==0)
+          //  break;
         
+    }*/
+    city c0,c_1;
+    //int prev_i=0;
+    city_info(&c0,0,READ);
+    int next_i=c0.next_i;
+    city from=c0;
+    city_info(&c_1,c0.next_i,READ);
+    city to=c_1;
+    thickLineColor(renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
+    printf("next_i is %d,,,\n",next_i);
+    for(int n=0; n< CITY_NUM; n++)
+    {
+        
+        //city_info(&from, prev_i, READ);
+        //prev_i=from.next_i;
+        //city_info(&to, next_i, READ);//j+1
+        //best_path[i] = next; 
+        //next = ci.next_i;
+        //cj.next_i=best_path[j+1];
+        //city_info(&cj, j, WRITE);
+        //next_i=to.next_i;
+        //city_info(&from, next_i, READ);
+        //city_info(&to, from.next_i, READ);// from.next_i n+1
+        //printf("next_i is %d from.next_i is %d ",next_i,from.next_i);
+        city_info(&from,n , READ);
+        city_info(&to, from.next_i, READ);
+        thickLineColor(renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
+        next_i=to.next_i;
     }
+    printf("\n");
+    print_nexts();
+    
+    
 
-    city c0, cl;
-    city_info(&c0, 0, READ);
-    city_info(&cl, last_i, READ);
+    //city c0, cl;
+    //city_info(&c0, 0, READ);
+    //city_info(&cl, i, READ);//last_i
     //float width = 2.0;
     //S2D_DrawLine(c0.x, c0.y, cl.x, cl.y, width, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
       //           0.0, 1.0);
-    thickLineColor(renderer,c0.x, c0.y, cl.x, cl.y, 2, LINE_COLOR) ;
+    //thickLineColor(renderer,c0.x, c0.y, cl.x, cl.y, 2, LINE_COLOR) ;
     //display_text("t2", 25, 0.85 * Y_MAX); // TODO elapsed time
     
     char ta[80]={'\0'};
     float dis;
-    distance_keeper(&dis, READ);
+    low_dist(&dis, READ);
+    //distance_keeper(&dis, READ);
+    
     //sprintf(ta, "Total disprintfstance is %.1lf cities_count is %d", dis, CITY_NUM);
     snprintf(ta, 79,"Total distance is %.1lf cities_count is %d", dis, CITY_NUM);
     //display_text(ta, 50, 0.9 * Y_MAX);
@@ -2871,7 +2988,14 @@ int main(void)
          pre_search(vertices[j],vns[j]);
     
     A_star_algorithm();
-
+    /*for(int j=0; j< CITY_NUM; j++)
+    {
+        city cj;
+        city_info(&cj, j, READ);
+        printf("n is %d ",cj.next_i);
+    }
+    printf("\n");*/
+    
     /*
     S2D_Window *window = S2D_CreateWindow(title, X_MAX, Y_MAX, NULL, render, 0 // TODO remove update: NULL
     );
