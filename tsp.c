@@ -78,7 +78,7 @@ typedef struct city city;
 // ************************************************ //
 
 //void display_text(char *in_text, float x, float y);
-void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text);
+void render_text(SDL_Renderer ** renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text);
 
 bool correct_index(int i)
 {
@@ -1769,28 +1769,15 @@ void place(int ci, st_t * state_ptr)
     assert(ci != NO_CITY);
     int lp = last_path(state_ptr);
     int i;
-    //for(i=0;i<=CITY_NUM; i++) // not already on queue 
+     
     if( on_open(ci,state_ptr)|| on_path(ci,state_ptr))//state->queue[i]==ci
         return;
-        //exit(1);
         
-    /*for(i=0; i<CITY_NUM ; i++)
-    {  
-        //state->stack[i]=state->stack[i-1];
-        if(state->queue[i]==NO_CITY )
-            break;
-    }
-    state->queue[i]=ci;*/
-    
-    /*for(i=CITY_NUM; i>0; i--)
-        state->open[i]=state->open[i-1];
-    state->open[0]=ci;*/
     for(i=0; i<CITY_NUM; i++)
         if(state_ptr->path[i]==NO_CITY)
             break;
     state_ptr->path[i]=ci;
-    //neat_open(state_ptr);
-    //sort_open(state_ptr);
+    
     multiple_open(state_ptr,ci);
     
     city c0,c1,c2;
@@ -2232,8 +2219,6 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     // TODO stop on distance cap or any remaining city with no choice
     for(i = 1; i < MAX_STATES; i++) // TODO success forward backward
     {
-        
-        //states[i] = states[i - 1];
         all_states[i]=*state_ptr;
         
         assert(complement(state_ptr));
@@ -2242,42 +2227,9 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
         print_state(state_ptr);
         
-        
-        /*if(i>=3 && equal(states+i,states+i-2))// TODO idle
-            for(int j = CITY_NUM ; j >0 ; j--)
-            {
-                int cpj=(states+i)->path[j];
-                if(cpj!=NO_CITY)
-                {
-                    (states+i)->path[j]=NO_CITY;
-                    
-                    match(states,&i);
-                    
-                    break;
-                }
-            }*/
         assert(complement(state_ptr));
         
-        /*if(impossible(states+i))
-        { 
-            step_backward(states, &i);   
-        }
-        else{ // TODO keep this or not ?
-        
-        bool better_found = step_forward(states, i, &min_dist);
-        if(better_found)
-            for(int j = 0; j < CITY_NUM + 1; j++)
-                best_path[j] = (states+i)->path[j];
-        }
-        
-        assert(complement(states+i));*/
-        
-        
         int top=NO_CITY;
-        //if(state_ptr->path[1]==NO_CITY)// && 
-            
-        //else
-        //if(state_ptr->path[1]!=NO_CITY)
         
         int lp=last_path(state_ptr);
         
@@ -2298,12 +2250,8 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 if(i<0)
                     break;
                 
-                //lp=last_path(all_states+i);
-                //multiple_open(all_states+i,lp);
-                //remove_lp(all_states+i);
                 remove_city(lp,all_states+i);
-                //neat_open(all_states+i);
-                //sort_open(all_states+i);
+                
                 multiple_open(all_states+i,lp);
                 
                 *state_ptr=all_states[i];
@@ -2329,84 +2277,38 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         {
             
             top=state_ptr->open[0];
-            //multiple_open(state_ptr,top);
+            
             state_ptr->open[0]=NO_CITY;
             neat_open(state_ptr);
             place(top,state_ptr);
             states_keeper(state_ptr, WRITE);
-            //fill_open(state_ptr,top);
+            
             multiple_open(state_ptr,top);
-            //neat_open(state_ptr);
-            //sort_open(state_ptr);
+            
             print_state(state_ptr);
-            //all_states[i]=*state_ptr;
-            //continue;
+            
         }else if(!adj(state_ptr->open[0] ,lp))
         {
-            //multiple_open(state_ptr,state_ptr->open[0]);
+            
             state_ptr->open[0]=NO_CITY;
             neat_open(state_ptr);
-            //sort_open(state_ptr);
-            //all_states[i]=*state_ptr;
             
-            //continue;
         }  
-        /*else if(impossible(state_ptr)) 
-        {
-            while(impossible(all_states+i))
-                i--;
-            if(i<0)
-                break;
-            
-            remove_city(lp,all_states+i);
-            //remove_lp(all_states+i);
-            neat_open(all_states+i);
-            //sort_open(all_states+i);
-            *state_ptr=all_states[i];
-            print_state(state_ptr);
-        }*/
-        
-        //if(top==NO_CITY ) // TODO somehow go back and continue from there
-        /*if(0)
-        {
-            //i--;
-            int lp=last_path(state_ptr);
-            //enque(lp,states+i);
-            
-            //(states+i)->queue[0]=NO_CITY;
-            //(states+i)->queue[1]=NO_CITY;
-            int q0=(state_ptr)->open[0];
-            while(!adj(q0,lp)|| !adj(lp,q0))
-                i--;
-            if(i<=0)
-                break;
-            
-            *state_ptr=all_states[i];
-            continue;
-            //break;
-        }*/
         
         int j;
         
         
         // TODO step 3:
-        
-        //for(j = 0; j < MAX_NEXT && (top!=NO_CITY); j++)//
-        {
-          //  int ci=g_vertex[top * MAX_NEXT + j];
-            int ci=top; // TODO correct above
+          
+        int ci=top; // TODO correct above
                 
-            bool op=on_path( ci,state_ptr);
-            if( ci != NO_CITY && !op)
-            {
-                place(ci, state_ptr);//push
-                states_keeper(state_ptr, WRITE);
-                //multiple_open(state_ptr,ci);
-                //exit(1);
-            }
+        bool op=on_path( ci,state_ptr);
+        if( ci != NO_CITY && !op)
+        {
+            place(ci, state_ptr);//push
+            states_keeper(state_ptr, WRITE);
                 
         }
-        
         
         if(full_but_last(state_ptr))
         {
@@ -2444,17 +2346,18 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         if(path_is_full(state_ptr))
         {
             solutions++;
-            
+            float dist = state_ptr->g;
+            float curr_dist;
+            low_dist(&curr_dist,READ);
+            if(curr_dist> (9.0/10.0)*FLT_MAX)
+                low_dist(&dist,WRITE);
         }
         
         if(path_is_full(state_ptr) && state_ptr->g<min_dist) // better solution found
         {
             best_changed++;
             min_dist=state_ptr->g;
-            //float cur_dist;
-            //distance_keeper(&cur_dist, READ);
-            //if(min_dist<cur_dist)
-            //distance_keeper(&min_dist, WRITE);
+            
             low_dist(&min_dist, WRITE);
             for( j = 0; j < CITY_NUM + 1; j++)
                 best_path[j] = (state_ptr)->path[j];
@@ -2464,14 +2367,16 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         if((open_is_empty(state_ptr) )&& !sol1_flag) // first solution
         { 
             sol1_flag=1;
+            float curr_dist=state_ptr->g;
+            low_dist(&curr_dist,WRITE);
             
             while(1) // TODO how to continue for more solutions ?
-            // was if open_is_empty(state_ptr)
+            
             {
-                //int lp;//=last_path(state_ptr); ,j
+                
                 for(j=CITY_NUM-1; state_ptr->path[j]==NO_CITY; j--)
                     continue;
-                //j--;
+                
                 if(j<=0)
                 {
                     end_flag=1;
@@ -2482,18 +2387,16 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                 assert(lp!=NO_CITY);
                 printf("lp is %d j is %d\n",lp,j);
             
-            
-                //sort_open(all_states+i);
                 int k=j;
                 int i2=i;
                 int inside_flag=0;
-                //int j2=j;
+                
                 for( i2=i; i2>=0 && j>=0 ; i2--) // TODO modify previous states
                 {
-                    for( j=k-1; j>0 ; j--)//state_ptr->open[i2] // && !adj(lp,i2)
+                    for( j=k-1; j>0 ; j--)
                     {
                     
-                        int blp=all_states[i2].path[j];//state_ptr->path[j];
+                        int blp=all_states[i2].path[j];
                     
                         if(blp==NO_CITY)
                             continue;
@@ -2505,11 +2408,11 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                             inside_flag=1;
                             break;
                         }
-                        //remove_city(blp,all_states+i2);//remove_city(lp,all_states+i);
+                        
                         remove_city(lp,all_states+i2);//
-                        //fill_open(state_ptr,lp);
-                        neat_open(all_states+i2);//(state_ptr);
-                        sort_open(all_states+i2);//(state_ptr);
+                        
+                        neat_open(all_states+i2);
+                        sort_open(all_states+i2);
                         *state_ptr=all_states[i2];
                     }
                     if(inside_flag)
@@ -2527,19 +2430,16 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
                     break;
                 }   
             
-                //if(!open_is_empty(all_states+i))
-                    //  break;
                 if(!impossible(all_states+i))
                     break;
                 i--;    
             }
         }
-        //if(inside_flag)
         
-        //if(queue_is_empty(&states[i]))//stack
         //if(path_is_full(state_ptr)   ) // TODO stop at same path repetition
-        if(end_flag)//(0)
+        if(end_flag)
         {   
+            
             print_state(state_ptr);
             break;
         }    
@@ -2547,38 +2447,28 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
         
     }
     
-    print_nexts();
     for(int j=0; j< CITY_NUM; j++)
     {
         city cj;
         city_info(&cj, best_path[j], READ);
-        //best_path[i] = next; 
-        //next = ci.next_i;
+        
         cj.next_i=best_path[j+1];
         city_info(&cj, best_path[j], WRITE);
-        //printf("n is %d ",cj.next_i);
     }
-    //city cj;
-    //city_info(&cj, CITY_NUM-1, READ);
-    //cj.next_i=0;
-    //city_info(&cj, CITY_NUM-1, WRITE);
+    
     for(int j=0; j< CITY_NUM; j++)
     {
         city cj;
         city_info(&cj, j, READ);
-        //best_path[i] = next; 
-        //next = ci.next_i;
-        //cj.next_i=best_path[j+1];
-        //city_info(&cj, j, WRITE);
-        printf("n is %d ",cj.next_i);
     }
     printf("\n");
-    print_nexts();
     
-    printf("min_dist is %.1lf max_i is %d i is %d bc is %d solutions: %d\n"
-        , min_dist,max_i,i,best_changed,solutions);
+    if(!sol1_flag)
+        low_dist(&min_dist,WRITE);
+    
+    printf("min_dist is %.1lf max_i is %d i is %d bc is %d solutions: %d s1 is %d\n"
+        , min_dist,max_i,i,best_changed,solutions,sol1_flag);
     print_path(best_path);
-    
 
     free(best_path);
     free(all_states);
@@ -2675,26 +2565,17 @@ void show_cycle(SDL_Renderer *renderer,int on_cycle)
     }
 }
 
-//void display_text(char *in_text, float x, float y)
-void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text)
+// ------------------------------------------------------------------------------------//
+void render_text(SDL_Renderer ** renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text)
 {
     
     assert(strlen(text) <= 80);
-    /*S2D_Text *text = S2D_CreateText("/usr/share/fonts/gnu-free/FreeSans.ttf", in_text, 15);
-    text->x = x + 10; 
-    text->y = y; 
-    text->color.r = 0.0;
-    text->color.g = 0.0;
-    text->color.b = 0.0;
-    text->color.a = 1.0;
-    S2D_DrawText(text);
-    S2D_FreeText(text);*/
     
     SDL_Surface * ts = TTF_RenderUTF8_Blended(font, text, black);
-    SDL_Texture* tx=SDL_CreateTextureFromSurface(renderer,ts);
+    SDL_Texture* tx=SDL_CreateTextureFromSurface(*renderer,ts);
     int width = strlen(text)*8;
     SDL_Rect rec={.x=x-20, .y=y-20, .w=width, .h=15};
-    SDL_RenderCopy(renderer, tx, NULL, &rec);
+    SDL_RenderCopy(*renderer, tx, NULL, &rec);
 }
 /*
 void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char * text)
@@ -2709,7 +2590,27 @@ void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char
     //stringColor(renderer, x, y, text, 0xFFAABBCC); 
 }*/
 
-void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
+void render_sub(SDL_Renderer **renderer,TTF_Font *font)
+{
+    char text[80]={'\0'};
+    float dis;
+    low_dist(&dis, READ);
+    
+    snprintf(text, 79,"Total distance is %.1lf cities_count is %d", dis, CITY_NUM); // TODO elapsed time
+    printf("%s\n",text);
+    /*
+    SDL_Surface * ts = TTF_RenderUTF8_Blended(font, text, black);
+    SDL_Texture* tx=SDL_CreateTextureFromSurface(*renderer,ts);
+    int width = strlen(text)*8;
+    assert(width<X_MAX);
+    SDL_Rect rec={.x=50, .y=Y_MAX-50, .w=width, .h=15};
+    SDL_RenderCopy(*renderer, tx, NULL, &rec);
+    */
+    render_text(renderer,font,50,Y_MAX-50,text);
+}
+
+
+void render(SDL_Renderer **renderer,TTF_Font *font) // TODO show elapsed
 {
     
     city start_end;
@@ -2720,7 +2621,7 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
     distance_keeper(&dis0, WRITE);
 
     //S2D_DrawCircle(x, y, radius, sectors, 0.0, 0.0, 1.0, 1.0);
-    filledCircleColor(renderer,  x,  y, 9, 0xFF0000FF);
+    filledCircleColor(*renderer,  x,  y, 9, 0xFF0000FF);
 
     /*S2D_Text *beg_text = S2D_CreateText("/usr/share/fonts/gnu-free/FreeSans.ttf", start_end.name, 15);
     beg_text->x = x + 10;
@@ -2748,7 +2649,7 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
         //snprintf(name_i,99, "%s %d", rest.name, i);
 
         //S2D_DrawCircle(x_val, y_val, radius, sectors, 1.0, 0.0, 0.0, 1.0);
-        filledCircleColor(renderer,  x_val,  y_val, 7, 0xFF00FF00);
+        filledCircleColor(*renderer,  x_val,  y_val, 7, 0xFF00FF00);
         
         //display_text(name_i, x_val, y_val);
         char all_text[80]={'\0'};
@@ -2784,7 +2685,7 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
     city from=c0;
     city_info(&c_1,c0.next_i,READ);
     city to=c_1;
-    thickLineColor(renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
+    thickLineColor(*renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
     printf("next_i is %d,,,\n",next_i);
     for(int n=0; n< CITY_NUM; n++)
     {
@@ -2802,11 +2703,11 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
         //printf("next_i is %d from.next_i is %d ",next_i,from.next_i);
         city_info(&from,n , READ);
         city_info(&to, from.next_i, READ);
-        thickLineColor(renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
+        thickLineColor(*renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
         next_i=to.next_i;
     }
     printf("\n");
-    print_nexts();
+    //print_nexts();
     
     
 
@@ -2819,15 +2720,7 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
     //thickLineColor(renderer,c0.x, c0.y, cl.x, cl.y, 2, LINE_COLOR) ;
     //display_text("t2", 25, 0.85 * Y_MAX); // TODO elapsed time
     
-    char ta[80]={'\0'};
-    float dis;
-    low_dist(&dis, READ);
-    //distance_keeper(&dis, READ);
     
-    //sprintf(ta, "Total disprintfstance is %.1lf cities_count is %d", dis, CITY_NUM);
-    snprintf(ta, 79,"Total distance is %.1lf cities_count is %d", dis, CITY_NUM);
-    //display_text(ta, 50, 0.9 * Y_MAX);
-    render_text(renderer, font, 50,  0.95 * Y_MAX, ta);
 
     int *v3 = calloc(CITY_NUM + 1, sizeof(int));
     vertex3(v3);
@@ -2843,16 +2736,15 @@ void render(SDL_Renderer *renderer,TTF_Font *font) // TODO show elapsed
         { {c2.x, c2.y}, pol, { 0,0 } },
         { {c3.x, c3.y}, pol, { 0,0 }}
     };
-    SDL_RenderGeometry(renderer,NULL, vertices,3,NULL,0);
+    SDL_RenderGeometry(*renderer,NULL, vertices,3,NULL,0);
+    
+    render_sub(renderer, font);
     
     //show_cycle2(renderer,1); 
 
     free(v3);
 }
 
-void update(void)
-{
-}
 
 // ************************************************ //
 void sdl_init(SDL_Window **window,SDL_Renderer **renderer,TTF_Font **font)
@@ -3009,25 +2901,15 @@ int main(void)
     TTF_Font *font=NULL;
     sdl_init(&window,&renderer,&font);
     SDL_Event event;
-    //bool quit = false;
-    //while (quit==false)
-    {
-        //printf("%d\n",quit); 
-        /*while (SDL_PollEvent(&event))
-            if (event.type == SDL_QUIT)
-            {
-                quit = true;
-                break;
-            }*/
-        //if(quit==true)
-            //break;
+    
+    SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
+    SDL_RenderClear(renderer);
+    
+    render(&renderer, font); // real job
+    //render_sub(&renderer, font);
+    
+    SDL_RenderPresent(renderer);
         
-        SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
-        SDL_RenderClear(renderer);
-        render(renderer, font);
-        SDL_RenderPresent(renderer);
-        //SDL_Delay(50);
-    }
     while (SDL_WaitEvent(&event))
         if (event.type == SDL_QUIT)
             break;
