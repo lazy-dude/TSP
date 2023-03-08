@@ -68,7 +68,7 @@ struct city
     float y;
     // visited
     bool visited;
-    int on_cycle;
+    int on_cycle; // TODO polygon instead of cycle
     // struct city *next;
     int joint; // to an outer? (inner) cycle
     int next_i;
@@ -452,7 +452,7 @@ bool vertex3(int *v3)
 }
 
 #define MIN_DIFF 5
-bool lines_cross(city c1, city c2, city c3, city c4)
+bool lines_cross(city c1, city c2, city c3, city c4) // TODO check the internet
 {
     //assert(c1.x != c3.x || c1.y != c3.y); // TODO more like this  ?
     
@@ -806,7 +806,157 @@ bool general_cycle(int *vertices, int *vert_num, int cycle)
     *vert_num = cnt;
     return false; 
 }
-//////////////////////////////////////
+
+int pnpoly(int nvert, float *vertx, float *verty, float testx, float testy) // taken from internet
+{
+  int i, j, c = 0;
+  for (i = 0, j = nvert-1; i < nvert; j = i++) {
+    if ( ((verty[i]>testy) != (verty[j]>testy)) &&
+	 (testx < (vertx[j]-vertx[i]) * (testy-verty[i]) / (verty[j]-verty[i]) + vertx[i]) )
+       c = !c;
+  }
+  return c;
+}
+#define EPS 0.01
+#define IMP_VALUE -1.0
+bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add cycle_keeper
+{
+    assert(CITY_NUM>=3);
+    assert(cycle != NOT_OC);
+    int nvert = 0;
+    int i;
+    (*vert_num)=0;
+    if(cycle == 1) // first cycle , yet no polygon
+    {
+        city ci;
+        for(i=0 ; i<=2; i++)
+        {
+            city_info(&ci, i, READ);
+            assert(ci.on_cycle == NOT_OC); // TODO second condition
+            ci.on_cycle=cycle;
+            city_info(&ci, i, WRITE);
+            cycle_keeper(&vertices[i] , i, cycle, WRITE); 
+            vertices[*vert_num]=i;
+            (*vert_num)++;
+        }
+    }
+    else
+    {
+        assert(cycle>=2);
+        city ci;
+        for(i=0; i<CITY_NUM; i++)
+        {
+            city_info(&ci, i, READ);
+            if(ci.on_cycle==NOT_OC)
+            {
+                ci.on_cycle=cycle;
+                city_info(&ci, i, WRITE);
+                vertices[*vert_num]=i;
+                (*vert_num)++;
+            }
+        }
+    }
+        
+    // there is a polygon
+    float * vertx = malloc( (CITY_NUM+1)*sizeof(float) );
+    float * verty = malloc( (CITY_NUM+1)*sizeof(float) );
+    for(i=0; i<CITY_NUM; i++)
+    {
+        vertx[i]=IMP_VALUE;
+        verty[i]=IMP_VALUE;
+    }
+    
+    for(i = 0; i < CITY_NUM; i++)
+    {
+        city ci;
+        city_info(&ci, i, READ);
+        if( ci.on_cycle == cycle)
+        {
+            vertx[nvert] = ci.x;
+            verty[nvert] = ci.y;
+            nvert++;
+            //(*vert_num)++;
+        }
+        
+    }
+    
+    (*vert_num)=nvert;
+    int nvi=0;
+    if(nvert<3)
+    {
+        for(i = 0; i < CITY_NUM; i++)
+        {
+            city ci;
+            city_info(&ci, i, READ);
+            if(ci.on_cycle==NOT_OC)
+            {
+                ci.on_cycle = cycle;
+                city_info(&ci,i,WRITE);
+                cycle_keeper(&vertices[i] , i, cycle, WRITE); 
+                vertices[nvi]=i;
+                nvi++;
+            }
+        }
+        (*vert_num)=nvert;
+        return false;
+    }
+    assert(nvert>=3);    
+    
+    for(i = 0; i < CITY_NUM; i++)
+    {
+        city ci;
+        city_info(&ci, i, READ);
+        if(ci.on_cycle == NOT_OC && !pnpoly(nvert,vertx,verty,ci.x,ci.y) )
+        {
+            ci.on_cycle = cycle;
+            city_info(&ci,i,WRITE);
+            cycle_keeper(&vertices[i] , i, cycle, WRITE);
+            vertices[*vert_num]=i;
+            (*vert_num)++;
+            
+            vertx[nvert]=ci.x;
+            verty[nvert]=ci.y;
+            nvert++;
+            for(int j=0; j<CITY_NUM && j!=i; j++)
+            {
+                city cj;
+                city_info(&cj, j, READ);
+                if(cj.on_cycle==cycle && 
+                    pnpoly(nvert,vertx,verty,cj.x,cj.y)  )// cj is in polygon now 
+                {
+                    cj.on_cycle=NOT_OC;
+                    city_info(&cj,j,WRITE);
+                    cycle_keeper(&vertices[j] , j, cycle, WRITE); 
+                    for(int k=0; k<*vert_num; k++)
+                        if(vertices[k]==j)
+                        {
+                            (*vert_num)--;
+                            vertices[k]=vertices[*vert_num];
+                            vertices[*vert_num]=0;
+                            break;
+                        }
+                    
+                    for(nvi=0; nvi<nvert; nvi++)
+                        if(fabs(vertx[nvi]-cj.x)<EPS && fabs(verty[nvi]-cj.y)<EPS)
+                        {
+                            nvert--;
+                            vertx[nvi]=vertx[nvert];
+                            verty[nvi]=verty[nvert];
+                            vertx[nvert]=IMP_VALUE;
+                            verty[nvert]=IMP_VALUE;
+                            
+                            break;
+                        }
+                }
+            }
+        }
+    }
+    (*vert_num)=nvert;
+    free(vertx);
+    free(verty);
+    return true;
+}
+///-------------------------------------------------------------------------------///
 void print_joints(int cycle)
 {
     printf("joints(cycle is %d): ", cycle);
@@ -1655,20 +1805,19 @@ int path_len(int * const path)
     
     return len;
 }
-bool complement(st_t * state_ptr) // TODO use it 
+bool complement(st_t * state_ptr)
 {
     
     printf(" #$#$#$ \n");
     print_state(state_ptr);
     
+    int i;
     
-    int city;
-    
-    for(city=0; city<CITY_NUM; city++)
+    for(i=0; i<CITY_NUM; i++)
     {
-        if(on_path(city, state_ptr))
+        if(on_path(i, state_ptr))
             continue;
-        if(on_state(city))
+        if(on_state(i))
             continue;
         return false;
     }
@@ -2221,7 +2370,7 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     {
         all_states[i]=*state_ptr;
         
-        assert(complement(state_ptr));
+        //assert(complement(state_ptr));
         if(i>max_i)
             max_i=i;
         
@@ -2782,6 +2931,7 @@ void sdl_init(SDL_Window **window,SDL_Renderer **renderer,TTF_Font **font)
     }
 }
 
+// ----------------------------------------------------------------------------- //
 int main(void)
 {
     assert(CITY_NUM >= 3);
@@ -2794,7 +2944,7 @@ int main(void)
          .joint = NO_CITY,
          .next_i = ALL_VISITED,
           };
-    //char name[10];
+    
     char coord[30];
     FILE * co_50 = fopen("tsp_coord_50.text","rt");
 	if(!co_50)
@@ -2811,12 +2961,11 @@ int main(void)
             break;
         sscanf(p,"%f,%f\n",&cc.x,&cc.y);
        
-        //char name[ENOUGH];//calloc
         const int NI_CNT = 20;
         names[i] = malloc(NI_CNT*sizeof(char));
         for(int i2=0; i2<NI_CNT; i2++)
-            *(names[i]+i2)='\0'; // was names[i]+i2 , {'\0'}
-        sprintf(names[i], "City_%d", i);
+            *(names[i]+i2)='\0';
+        sprintf(names[i], "City_%d", i); // TODO remove City_
         cc.name=names[i];
        
         city_info(&cc,i,WRITE);
@@ -2826,9 +2975,6 @@ int main(void)
 	// TODO free names[i]
 	fclose(co_50);
 #endif
-
-    //const S2D_Color color = {0.9, 0.9, 0.9, 1.0};
-    //char *title = "TSP problem , graph theory";
     
     float dis;
     distance_keeper(&dis, READ);
@@ -2836,41 +2982,46 @@ int main(void)
     
     last_draw();
 
-    /*
-    int *vertices = calloc(CITY_NUM + 1, sizeof(int)); // TODO static inside a function
-    int *vertices2 = calloc(CITY_NUM + 1, sizeof(int));
-    
-    int vn1, vn2;
-    general_cycle(vertices, &vn1, 1); // TODO inside a loop
-    general_cycle(vertices2, &vn2, 2); 
-    
-    print_no_cycle();
-    
-    joints(2);
-
-    pre_search(vertices, vn1);
-    pre_search(vertices2, vn2);*/
     int j;
     int *vertices[MAX_CYCLES+1];
     for(j=0; j<MAX_CYCLES+1; j++)
         vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
     int vns[MAX_CYCLES+1]={0}; // ={0};
-    for(j=1; j<MAX_CYCLES; j++)// 0 MAX_CYCLES
+    for(j=1; j<MAX_CYCLES; j++)// TODO remove debugging code
     {
-        general_cycle(vertices[j],&vns[j],j); // last was j+1
-        printf(" $$ j is %d $$ ",j);
-        print_vertices(vertices[j],vns[j]);
-        printf("\n");
-        //if(gcr)
-          //  break;
-        /*printf(" ** ");
-        for(int k=0; k<MAX_NEXT; k++)
+        //general_cycle(vertices[j],&vns[j],j); 
+        
+        general_cycle_version2(vertices[j],&vns[j],j); 
+        /*for(int k=0; k<CITY_NUM; k++)
         {
-            city cj;
-            city_info(&cj, vertices[j][k], READ);
-            printf(" %d ",cj.on_cycle);
+            city ck;
+            city_info(&ck, k, READ);
+            if(ck.on_cycle==j)
+            {
+                ck.on_cycle=NOT_OC;
+                city_info(&ck, k,WRITE);
+            }
         }
-        printf("\n");*/
+        int *vertices2=calloc(CITY_NUM + 1, sizeof(int));
+        int vns2=0;
+        general_cycle_version2(vertices2, &vns2, j);// TODO break on false
+        //bool gcr=general_cycle_version2(j);
+        //if(gcr==false)
+          //  break;
+        printf("$$##^\n");
+        printf("j is %d vns[j] is %d vns2 is %d\n",j,vns[j],vns2);
+        print_vertices(vertices[j], vns[j]);
+        print_vertices(vertices2, vns2);
+        assert(vns[j]==vns2);
+        //for(int k=0; k<CITY_NUM; k++)
+          //  assert( (vertices[j][k])==vertices2[k]);
+        free(vertices2);*/
+    }
+    for(j=0; j<CITY_NUM; j++)
+    {
+        city cj;
+        city_info(&cj, j, READ);
+        assert(cj.on_cycle!=NOT_OC);
     }
     print_no_cycle();
     
@@ -2880,22 +3031,7 @@ int main(void)
          pre_search(vertices[j],vns[j]);
     
     A_star_algorithm();
-    /*for(int j=0; j< CITY_NUM; j++)
-    {
-        city cj;
-        city_info(&cj, j, READ);
-        printf("n is %d ",cj.next_i);
-    }
-    printf("\n");*/
     
-    /*
-    S2D_Window *window = S2D_CreateWindow(title, X_MAX, Y_MAX, NULL, render, 0 // TODO remove update: NULL
-    );
-    window->background = color;
-    window->frames = 1;
-    S2D_Show(window);
-    S2D_FreeWindow(window);
-    */
     SDL_Window *window=NULL;
     SDL_Renderer *renderer=NULL;
     TTF_Font *font=NULL;
@@ -2906,7 +3042,6 @@ int main(void)
     SDL_RenderClear(renderer);
     
     render(&renderer, font); // real job
-    //render_sub(&renderer, font);
     
     SDL_RenderPresent(renderer);
         
@@ -2914,8 +3049,6 @@ int main(void)
         if (event.type == SDL_QUIT)
             break;
             
-    //free(vertices);
-    //free(vertices2);
     for(j=0; j<MAX_CYCLES+1; j++)
         free(vertices[j]);
     
