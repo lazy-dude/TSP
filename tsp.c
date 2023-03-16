@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
 
 //#include <simple2d.h>
 #include <SDL2/SDL.h>
@@ -26,6 +27,8 @@ const SDL_Color bg={255, 255, 255,255};//{32, 32, 32, 0xFF}; // background
 const SDL_Color pol={200, 200, 200, 0xFF}; // polygon
 const SDL_Color white = {255, 255, 255,255};
 const SDL_Color black = {0, 0, 0,255};
+const SDL_Color blue={0, 0, 255, 255};
+const SDL_Color green ={0,255,0, 255};
 #define LINE_COLOR 0xFF0FFFF0
 #define POINT_SIZE 512
 //#define X_MAX 1 
@@ -452,12 +455,29 @@ bool vertex3(int *v3)
 }
 
 #define MIN_DIFF 5
-bool lines_cross(city c1, city c2, city c3, city c4) // TODO check the internet
+#define EPS 0.01
+bool same_coor(city c1, city c2)
 {
-    //assert(c1.x != c3.x || c1.y != c3.y); // TODO more like this  ?
+    if(fabs(c2.x-c1.x)<EPS && fabs(c2.y-c1.y)<EPS)
+        return true;
+    return false;
+}
+bool lines_cross(city c1, city c2, city c3, city c4) // TODO check the internet , lines segment
+{
+    //assert(c1.x != c3.x || c1.y != c3.y); // TODO more like this  asserts
     
     
-    assert(c2.x != c1.x);
+    assert(fabs(c2.x-c1.x) >EPS || fabs(c2.y-c1.y) >EPS);
+    assert(fabs(c4.x-c3.x) >EPS || fabs(c4.y-c3.y) >EPS);
+    if(same_coor(c2,c3) && same_coor(c1,c4))
+    {
+        fprintf(stderr,"same segments\n");
+        exit(1);
+    }
+    if(same_coor(c2,c3))
+        return false;
+    
+    
     float a = (c2.y - c1.y) / (c2.x - c1.x);
     float b = c1.y - a * c1.x;
 
@@ -807,27 +827,217 @@ bool general_cycle(int *vertices, int *vert_num, int cycle)
     return false; 
 }
 
-int pnpoly(int nvert, float *vertx, float *verty, float testx, float testy) // taken from internet
+//#define EPS 0.01
+#define IMP_COOR_VALUE -1.0
+struct xy // for sorting
 {
-  int i, j, c = 0;
-  for (i = 0, j = nvert-1; i < nvert; j = i++) {
-    if ( ((verty[i]>testy) != (verty[j]>testy)) &&
-	 (testx < (vertx[j]-vertx[i]) * (testy-verty[i]) / (verty[j]-verty[i]) + vertx[i]) )
-       c = !c;
-  }
-  return c;
+    float x;
+    float y;
+};
+bool imp_coor(float coor)
+{
+    if(fabs(coor-IMP_COOR_VALUE)<EPS)
+        return true;
+    return false;
 }
-#define EPS 0.01
-#define IMP_VALUE -1.0
-bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add cycle_keeper
+bool vertices_ok(int nvert, float *vertx, float *verty)
 {
+    int i;
+    for(i=0; i<nvert; i++)
+    {
+        if(imp_coor(vertx[i]) || fabs(vertx[i])<EPS)
+            return false;
+        if(imp_coor(verty[i]) || fabs(verty[i])<EPS)
+            return false;
+    }
+    return true;
+}
+int is_left(int nvert, float *vertx, float *verty, int a, int b, int c)
+{
+    assert(a>=0 && a<nvert);
+    assert(b>=0 && b<nvert);
+    assert(c>=0 && c<nvert);
+    int r;
+    r = (vertx[b]-vertx[a])*(verty[c]-verty[a])-(verty[b]-verty[a])*(vertx[c]-vertx[a]) >0 ;
+    return r;
+}
+int cmp(const void* elem1, const void* elem2)
+{
+    struct xy xy1 = *((struct xy *)elem1);
+    struct xy xy2 = *((struct xy *)elem2);
+    if(xy1.x > xy2.x)
+        return 1;
+    else
+        return -1;
+}
+int rev_cmp(const void* elem1, const void* elem2)
+{
+    return -cmp(elem1, elem2);
+}
+void create_polygon(int nvert, float **vertx, float **verty) 
+{
+    assert(nvert>=3);
+    assert(vertices_ok(nvert, *vertx, *verty));
+    
+    int p=0; // left most
+    float px,py;
+    int q=0; // right most
+    float qx, qy;
+    int i;
+    for(i=0; i<nvert; i++)
+    {
+        if( (*verty)[i]<(*verty)[p] )
+            p=i;
+        if((*verty)[i]>(*verty)[q])
+            q=i;
+    }
+    assert(p!=q);
+    px=(*vertx)[p];
+    py=(*verty)[p];
+    qx=(*vertx)[q];
+    qy=(*verty)[q];
+    struct xy * below=calloc(nvert+1, sizeof(struct xy));
+    struct xy * above=calloc(nvert+1, sizeof(struct xy));
+    int bi=0;
+    int ai=0;
+    
+    struct xy all[nvert+1];
+    for(i=0; i<nvert; i++)
+    {
+        all[i].x=(*vertx)[i];
+        all[i].y=(*verty)[i];
+    }
+    for(i=0; i<nvert; i++)
+        if(is_left(nvert, *vertx, *verty, p, q, i))
+        {
+            if(i==p || i==q)
+                continue;
+            above[ai].x=(*vertx)[i];
+            above[ai].y=(*verty)[i];
+            ai++;
+        }
+        else
+        {
+            if(i==p || i==q)
+                continue;
+            below[bi].x=(*vertx)[i];
+            below[bi].y=(*verty)[i];
+            bi++;
+        }
+    assert(nvert==(ai+bi+2));
+    
+    qsort(above, ai, sizeof(struct xy), rev_cmp );
+    qsort(below, bi, sizeof(struct xy), cmp );
+    
+    (*vertx)[0]=px;
+    (*verty)[0]=py;
+    for(i=1; i<=bi; i++)
+    {
+        (*vertx)[i]=below[i-1].x;
+        (*verty)[i]=below[i-1].y;
+    }
+    (*vertx)[i]=qx;
+    (*verty)[i]=qy;
+    i++;
+    for(;i<nvert; i++)
+    {
+        (*vertx)[i]=above[i-bi-2].x;
+        (*verty)[i]=above[i-bi-2].y;
+    }
+    
+    for(i=0; i<nvert; i++) // some asserts
+    {
+        assert(!imp_coor((*vertx)[i]));
+        assert(!imp_coor((*verty)[i]));
+    }
+    int j;
+    city cv[4];
+    for(i=0; i<nvert-2; i++)
+        for(j=i+1; j<nvert-1; j++)
+        {
+            cv[0].x=(*vertx)[i];
+            cv[0].y=(*verty)[i];
+            cv[1].x=(*vertx)[i+1];
+            cv[1].y=(*verty)[i+1];
+            cv[2].x=(*vertx)[j];
+            cv[2].y=(*verty)[j];
+            cv[3].x=(*vertx)[j+1];
+            cv[3].y=(*verty)[j+1];
+            printf("nvert is %d i is %d j is %d\n",nvert,i,j);
+            assert(!lines_cross(cv[0],cv[1],cv[2],cv[3]));
+        }
+    
+    free(below);
+    free(above);
+    assert(vertices_ok(nvert, *vertx, *verty));
+}
+bool p_is_a_vertex(int nvert, float *vertx, float *verty, float x, float y)
+{
+    assert(nvert<=CITY_NUM);
+    assert(!imp_coor(x));
+    assert(!imp_coor(y));
+    int i;
+    for(i=0; i<nvert; i++)
+    {
+        assert(!imp_coor(vertx[i]));
+        assert(!imp_coor(verty[i]));
+        if( (fabs(vertx[i]-x)<EPS) && (fabs(verty[i]-y)<EPS) )
+            return true;
+    }
+    return false;
+}
+int pnpoly(int nvert, float *vertx, float *verty, float testx, float testy) // taken from internet
+{ // TODO single array of cities as argument above
+    assert(nvert>=3);
+    assert(nvert<=CITY_NUM);
+    assert(!imp_coor(testx));
+    assert(!imp_coor(testy));
+    if(p_is_a_vertex(nvert, vertx, verty, testx, testy))
+        return 0;
+    int i, j, c = 0;
+    for (i = 0, j = nvert-1; i < nvert; j = i++) 
+    {
+        if ( ((verty[i]>testy) != (verty[j]>testy)) &&
+	       (testx < (vertx[j]-vertx[i]) * (testy-verty[i]) / (verty[j]-verty[i]) + vertx[i]) )
+            c = !c;
+    }
+    return c;
+}
+void remove_verts(int * nvert, float ** vertx, float ** verty, int ni)
+{
+    (*nvert)--;
+    (*vertx)[ni]=(*vertx)[*nvert];
+    (*verty)[ni]=(*verty)[*nvert];
+    (*vertx)[*nvert]=IMP_COOR_VALUE;
+    (*verty)[*nvert]=IMP_COOR_VALUE;
+    assert(vertices_ok(*nvert, *vertx, *verty));
+    create_polygon(*nvert,vertx, verty);
+}
+void init_verts(int * nvert, float ** vertx, float ** verty)
+{
+    int i;
+    for(i=0; i<CITY_NUM; i++)
+    {
+        (*vertx)[i]=IMP_COOR_VALUE;
+        (*verty)[i]=IMP_COOR_VALUE;
+    }
+    (*nvert)=0;
+}
+bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add cycle_keeper
+{// TODO debug it
     assert(CITY_NUM>=3);
     assert(cycle != NOT_OC);
     int nvert = 0;
-    int i;
+    int i,j;
     (*vert_num)=0;
+    
+    float * vertx = malloc( (CITY_NUM+1)*sizeof(float) );
+    float * verty = malloc( (CITY_NUM+1)*sizeof(float) );
+    init_verts(&nvert, &vertx, &verty);
+    
     if(cycle == 1) // first cycle , yet no polygon
     {
+        
         city ci;
         for(i=0 ; i<=2; i++)
         {
@@ -838,6 +1048,45 @@ bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add 
             cycle_keeper(&vertices[i] , i, cycle, WRITE); 
             vertices[*vert_num]=i;
             (*vert_num)++;
+            vertx[i]=ci.x;
+            verty[i]=ci.y;
+        }
+        // TODO debug following:
+        nvert=3; 
+        for(j=CITY_NUM-1; j>=0; j--)
+        {
+            city cj;
+            city_info(&cj, j, READ);
+            
+            /*for(int ni=0; ni<nvert; ni++)
+                if(fabs(cj.x-vertx[ni])<EPS && fabs(cj.y-verty[ni])<EPS)
+                {
+                    remove_verts(&nvert, &vertx, &verty, ni);
+                    create_polygon(nvert, &vertx, &verty);
+                    break;
+                }*/
+            if(p_is_a_vertex(nvert, vertx, verty, cj.x, cj.y))
+            {
+                remove_verts(&nvert, &vertx, &verty, j);
+                create_polygon(nvert, &vertx, &verty);
+            }
+            if(pnpoly(nvert, vertx, verty, cj.x, cj.y))
+            {
+                cj.on_cycle=NOT_OC;
+                city_info(&cj, j, WRITE);
+                
+            }
+            else 
+            {
+                cj.on_cycle=cycle;
+                city_info(&cj, j, WRITE);
+                
+                vertx[nvert]=cj.x;
+                verty[nvert]=cj.y;
+                nvert++;
+                create_polygon(nvert, &vertx, &verty);
+                
+            }
         }
     }
     else
@@ -858,23 +1107,20 @@ bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add 
     }
         
     // there is a polygon
-    float * vertx = malloc( (CITY_NUM+1)*sizeof(float) );
-    float * verty = malloc( (CITY_NUM+1)*sizeof(float) );
-    for(i=0; i<CITY_NUM; i++)
-    {
-        vertx[i]=IMP_VALUE;
-        verty[i]=IMP_VALUE;
-    }
+    init_verts(&nvert, &vertx, &verty);
     
     for(i = 0; i < CITY_NUM; i++)
     {
         city ci;
         city_info(&ci, i, READ);
+        assert(!imp_coor(ci.x));
+        assert(!imp_coor(ci.y));
         if( ci.on_cycle == cycle)
         {
             vertx[nvert] = ci.x;
             verty[nvert] = ci.y;
             nvert++;
+            assert(vertices_ok(nvert, vertx, verty));
             //(*vert_num)++;
         }
         
@@ -902,11 +1148,16 @@ bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add 
     }
     assert(nvert>=3);    
     
-    for(i = 0; i < CITY_NUM; i++)
+    for(i = 0; i < CITY_NUM; i++) // expand or reduce
     {
         city ci;
         city_info(&ci, i, READ);
-        if(ci.on_cycle == NOT_OC && !pnpoly(nvert,vertx,verty,ci.x,ci.y) )
+        assert(vertices_ok(nvert, vertx, verty));
+        create_polygon(nvert,&vertx, &verty); // TODO add more below
+        if( !pnpoly(nvert,vertx,verty,ci.x,ci.y)
+            &&!p_is_a_vertex(nvert,vertx,verty,ci.x,ci.y) 
+            && (ci.on_cycle == NOT_OC)
+            )
         {
             ci.on_cycle = cycle;
             city_info(&ci,i,WRITE);
@@ -917,12 +1168,39 @@ bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add 
             vertx[nvert]=ci.x;
             verty[nvert]=ci.y;
             nvert++;
-            for(int j=0; j<CITY_NUM && j!=i; j++)
+            assert(vertices_ok(nvert, vertx, verty));
+            create_polygon(nvert,&vertx, &verty);
+            
+            assert((*vert_num)==nvert);
+            /*int n=nvert;
+            for(int j=0; j<n; j++) // newly added
+            {
+                city cv;
+                city_info(&cv, vertices[j], READ); 
+                if(pnpoly(n, vertx, verty, cv.x, cv.y)&& !p_is_a_vertex(n,vertx,verty,cv.x,cv.y))
+                {
+                    cv.on_cycle=NOT_OC;
+                    city_info(&cv, vertices[j], WRITE);
+                    (*vert_num)--;
+                    vertices[j]=vertices[*vert_num];
+                    vertices[*vert_num]=0;
+                    
+                }
+            }
+            for(int j=0; j<n; j++)
+            {
+                
+            }*/
+            
+            for(j=0; j<CITY_NUM ; j++) // just disabled && j!=i
             {
                 city cj;
                 city_info(&cj, j, READ);
-                if(cj.on_cycle==cycle && 
-                    pnpoly(nvert,vertx,verty,cj.x,cj.y)  )// cj is in polygon now 
+                // TODO remove cj coor from vertx,verty
+                if(//cj.on_cycle==cycle &&
+                    pnpoly(nvert,vertx,verty,cj.x,cj.y) 
+                    //&&!p_is_a_vertex(nvert,vertx,verty,cj.x,cj.y) 
+                    )// cj is in polygon now 
                 {
                     cj.on_cycle=NOT_OC;
                     city_info(&cj,j,WRITE);
@@ -933,27 +1211,174 @@ bool general_cycle_version2(int * vertices,int* vert_num,int cycle) // TODO add 
                             (*vert_num)--;
                             vertices[k]=vertices[*vert_num];
                             vertices[*vert_num]=0;
-                            break;
+                            //break;
                         }
                     
                     for(nvi=0; nvi<nvert; nvi++)
                         if(fabs(vertx[nvi]-cj.x)<EPS && fabs(verty[nvi]-cj.y)<EPS)
                         {
-                            nvert--;
-                            vertx[nvi]=vertx[nvert];
-                            verty[nvi]=verty[nvert];
-                            vertx[nvert]=IMP_VALUE;
-                            verty[nvert]=IMP_VALUE;
-                            
-                            break;
+                            remove_verts(&nvert, &vertx, &verty, nvi);
+                            //break;
                         }
                 }
             }
         }
+        
     }
+    
+    /*for(i=0; i<CITY_NUM; i++) // TODO fix for wrong on_cycle, maybe extra
+    {
+        city ci;
+        city_info(&ci, i, READ);
+        if(ci.on_cycle==cycle )
+        {
+            assert(p_is_a_vertex(nvert,vertx,verty,ci.x, ci.y));
+            for( j=0; j<CITY_NUM && j!=i; j++)
+            {
+                city cj;
+                city_info(&cj, j, READ);
+                if(pnpoly(nvert,vertx,verty,cj.x,cj.y) && !p_is_a_vertex(nvert,vertx,verty,cj.x,cj.y) )//&& cj.on_cycle!=(cycle+1)
+                {
+                    cj.on_cycle=NOT_OC;
+                    //assert(cj.on_cycle==NOT_OC);
+                    city_info(&cj, j, WRITE);
+                }
+            }
+        }
+    }*/
+    
     (*vert_num)=nvert;
     free(vertx);
     free(verty);
+    return true;
+}
+
+// ----------------------------------------------------//
+bool ccw(const city *a, const city *b, const city *c) {
+    return (b->x - a->x) * (c->y - a->y)
+         > (b->y - a->y) * (c->x - a->x);
+}
+int compare_cities(const void *lhs, const void *rhs) {
+    const city* lp = lhs;
+    const city* rp = rhs;
+    if (lp->x < rp->x)
+        return -1;
+    if (rp->x < lp->x)
+        return 1;
+    if (lp->y < rp->y)
+        return -1;
+    if (rp->y < lp->y)
+        return 1;
+    return 0;
+}
+void fatal(const char* message) {
+    fprintf(stderr, "%s\n", message);
+    exit(1);
+}
+void* xmalloc(size_t n) {
+    void* ptr = malloc(n);
+    if (ptr == NULL)
+        fatal("Out of memory");
+    return ptr;
+}
+void* xrealloc(void* p, size_t n) {
+    void* ptr = realloc(p, n);
+    if (ptr == NULL)
+        fatal("Out of memory");
+    return ptr;
+}
+bool same_city(city c1, city c2)
+{
+    if(strcmp(c1.name, c2.name)==0)
+        {
+            assert( fabs(c1.x-c2.x)<EPS);
+            assert(fabs(c1.y-c2.y)<EPS);
+            return true;
+        }
+    return false;
+}
+
+bool convex_hull(int * vertices, int * vert_num,int cycle)
+{
+    int i;
+    city ci;
+    bool flag=false;
+    city * curr_cities=xmalloc( (CITY_NUM+1) * sizeof(city));
+    int cci=0;
+    
+    for(i=0; i<CITY_NUM; i++)
+    {
+        city_info(&ci, i, READ);
+        if(ci.on_cycle==NOT_OC)
+        {
+            curr_cities[cci]=ci;
+            cci++;
+            flag=true;
+        }
+    }
+    if(flag==false) // all cities assigned.
+    {
+        (*vert_num) = 0;
+        vertices = NULL;
+        return false;
+    }
+    
+    int size = 0;
+    int capacity = 4;
+    city* hull = xmalloc(capacity * sizeof(city));
+    
+    qsort(curr_cities, cci, sizeof(city), compare_cities);
+    
+    /* lower hull */
+    for (i = 0; i < cci; ++i) {
+        while (size >= 2 && !ccw(&hull[size - 2], &hull[size - 1], &curr_cities[i]))
+            --size;
+        if (size == capacity) {
+            capacity *= 2;
+            hull = xrealloc(hull, capacity * sizeof(city));
+        }
+        assert(size >= 0 && size < capacity);
+        hull[size++] = curr_cities[i];
+    }
+    
+    /* upper hull */
+    int t = size + 1;
+    for (i = cci - 1; i >= 0; i--) {
+        while (size >= t && !ccw(&hull[size - 2], &hull[size - 1], &curr_cities[i]))
+            --size;
+        if (size == capacity) {
+            capacity *= 2;
+            hull = xrealloc(hull, capacity * sizeof(city));
+        }
+        assert(size >= 0 && size < capacity);
+        hull[size++] = curr_cities[i];
+    }
+    --size;
+    assert(size >= 0);
+    hull = xrealloc(hull, size * sizeof(city));
+    
+    city cj;
+    int j;
+    (*vert_num) = 0;
+    for(i=0; i<size; i++) // TODO maybe extra , modify above
+    {
+        ci = hull[i];
+        for(j=0; j<CITY_NUM; j++)
+        {
+            city_info(&cj, j, READ);
+            if(same_city(cj,ci))
+            {
+                cj.on_cycle=cycle;
+                city_info(&cj, j, WRITE);
+                vertices[*vert_num]=j;
+                (*vert_num)++;
+            }
+        }
+    }
+    // vertices
+    (*vert_num) = size;
+    
+    free(curr_cities);
     return true;
 }
 ///-------------------------------------------------------------------------------///
@@ -2739,13 +3164,14 @@ void render_text(SDL_Renderer * renderer,TTF_Font *font,Sint16 x, Sint16 y, char
     //stringColor(renderer, x, y, text, 0xFFAABBCC); 
 }*/
 
-void render_sub(SDL_Renderer **renderer,TTF_Font *font)
+void render_sub(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
 {
     char text[80]={'\0'};
+    char ts[80]={'\0'};
     float dis;
     low_dist(&dis, READ);
     
-    snprintf(text, 79,"Total distance is %.1lf cities_count is %d", dis, CITY_NUM); // TODO elapsed time
+    snprintf(text, 79,"Total distance is %.1lf cities_count is %d", dis, CITY_NUM); 
     printf("%s\n",text);
     /*
     SDL_Surface * ts = TTF_RenderUTF8_Blended(font, text, black);
@@ -2755,11 +3181,15 @@ void render_sub(SDL_Renderer **renderer,TTF_Font *font)
     SDL_Rect rec={.x=50, .y=Y_MAX-50, .w=width, .h=15};
     SDL_RenderCopy(*renderer, tx, NULL, &rec);
     */
+    snprintf(ts, 79, "Time elapsed on computing is %.2lf sec",time_elapsed);
+    printf("%s\n",ts);
+    
     render_text(renderer,font,50,Y_MAX-50,text);
+    render_text(renderer,font, 50, Y_MAX-25,ts);
 }
 
 
-void render(SDL_Renderer **renderer,TTF_Font *font) // TODO show elapsed
+void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed) 
 {
     
     city start_end;
@@ -2798,7 +3228,12 @@ void render(SDL_Renderer **renderer,TTF_Font *font) // TODO show elapsed
         //snprintf(name_i,99, "%s %d", rest.name, i);
 
         //S2D_DrawCircle(x_val, y_val, radius, sectors, 1.0, 0.0, 0.0, 1.0);
-        filledCircleColor(*renderer,  x_val,  y_val, 7, 0xFF00FF00);
+        Uint32 color;
+        if(rest.on_cycle%2 == 1) // TODO single color
+            color=0xFF00FF00;
+        else
+            color=0xFFFF0000;
+        filledCircleColor(*renderer,  x_val,  y_val, 7, color);
         
         //display_text(name_i, x_val, y_val);
         char all_text[80]={'\0'};
@@ -2887,7 +3322,7 @@ void render(SDL_Renderer **renderer,TTF_Font *font) // TODO show elapsed
     };
     SDL_RenderGeometry(*renderer,NULL, vertices,3,NULL,0);
     
-    render_sub(renderer, font);
+    render_sub(renderer, font, time_elapsed);
     
     //show_cycle2(renderer,1); 
 
@@ -2935,6 +3370,7 @@ void sdl_init(SDL_Window **window,SDL_Renderer **renderer,TTF_Font **font)
 int main(void)
 {
     assert(CITY_NUM >= 3);
+    clock_t begin = clock();
 
 #ifdef EXAMPLE_50
     char *names[CITY_NUM+1]={NULL};
@@ -2949,7 +3385,7 @@ int main(void)
     FILE * co_50 = fopen("tsp_coord_50.text","rt");
 	if(!co_50)
 	{
-	    fprintf(stderr,"Err  opening file.\n");
+	    fprintf(stderr,"Err opening file.\n");
 	    return 1;
 	}
 	while(1)
@@ -2985,37 +3421,21 @@ int main(void)
     int j;
     int *vertices[MAX_CYCLES+1];
     for(j=0; j<MAX_CYCLES+1; j++)
-        vertices[j]=calloc(CITY_NUM + 1, sizeof(int));
+    {
+        vertices[j]=calloc(CITY_NUM + 1, sizeof(int)); // TODO init to IMP_COOR_VALUE
+        //vertices[j]=malloc( (CITYNUM+1)*sizeof(int));
+    }
     int vns[MAX_CYCLES+1]={0}; // ={0};
     for(j=1; j<MAX_CYCLES; j++)// TODO remove debugging code
     {
         //general_cycle(vertices[j],&vns[j],j); 
         
-        general_cycle_version2(vertices[j],&vns[j],j); 
-        /*for(int k=0; k<CITY_NUM; k++)
-        {
-            city ck;
-            city_info(&ck, k, READ);
-            if(ck.on_cycle==j)
-            {
-                ck.on_cycle=NOT_OC;
-                city_info(&ck, k,WRITE);
-            }
-        }
-        int *vertices2=calloc(CITY_NUM + 1, sizeof(int));
-        int vns2=0;
-        general_cycle_version2(vertices2, &vns2, j);// TODO break on false
-        //bool gcr=general_cycle_version2(j);
-        //if(gcr==false)
-          //  break;
-        printf("$$##^\n");
-        printf("j is %d vns[j] is %d vns2 is %d\n",j,vns[j],vns2);
-        print_vertices(vertices[j], vns[j]);
-        print_vertices(vertices2, vns2);
-        assert(vns[j]==vns2);
-        //for(int k=0; k<CITY_NUM; k++)
-          //  assert( (vertices[j][k])==vertices2[k]);
-        free(vertices2);*/
+        //bool gcvr=general_cycle_version2(vertices[j],&vns[j],j); 
+        bool chr=convex_hull(vertices[j], &vns[j], j);
+        if(chr==false)
+            break;
+        
+        
     }
     for(j=0; j<CITY_NUM; j++)
     {
@@ -3032,6 +3452,11 @@ int main(void)
     
     A_star_algorithm();
     
+    // TODO add post_search , eliminate crossed line segments
+    
+    clock_t end = clock();
+    double time_elapsed = (double)(end - begin) / CLOCKS_PER_SEC;
+    
     SDL_Window *window=NULL;
     SDL_Renderer *renderer=NULL;
     TTF_Font *font=NULL;
@@ -3041,7 +3466,7 @@ int main(void)
     SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
     SDL_RenderClear(renderer);
     
-    render(&renderer, font); // real job
+    render(&renderer, font, time_elapsed); // real job
     
     SDL_RenderPresent(renderer);
         
