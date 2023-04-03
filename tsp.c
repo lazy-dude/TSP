@@ -20,7 +20,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
 #include <SDL2/SDL_ttf.h>
-const char *title = "TSP problem , graph theory";
+const char *title = "TSP problem , graph theory , geometry";
 #define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf"
 //#define FONT "/usr/local/share/agar/fonts/monoalgue.ttf"
 const SDL_Color bg={255, 255, 255,255};//{32, 32, 32, 0xFF}; // background
@@ -46,6 +46,12 @@ const SDL_Color green ={0,255,0, 255};
 #define X_MAX 900//1000 
 #define Y_MAX 700//1000
 #define CITY_NUM 50
+#endif
+
+#ifdef EXAMPLE_75
+#define X_MAX 900//1000 
+#define Y_MAX 700//1000
+#define CITY_NUM 75
 #endif
 
 #define ALL_VISITED -1
@@ -2870,14 +2876,20 @@ void rev_nexts( int beg, int end) // TODO ongoing:
     int * part = calloc(CITY_NUM+2, sizeof(int));
     
     if(beg==end)
+    {
+        free(part);
         return;
+    }
     
     //city_info(&ci, beg, READ);
     city_info(&ci, end, READ);
     city_info(&bc, beg, READ);
     city_info(&ec, end, READ);
     if(same_city(bc, ec))
+    {
+        free(part);
         return;
+    }
     
     part[0]=end;//beg;
     for(i=1; i<CITY_NUM+1; i++) // fill "part"
@@ -2959,35 +2971,8 @@ void rev_nexts( int beg, int end) // TODO ongoing:
     return;
 }
 
-void undo_rev_nexts( int beg, int end, int p_a, int p_b, int p_c, int p_d) // TODO seems extra
-{
-    assert(beg != end);
-    city ca,cc;
-    //city bb;
-    
-    printf("\n*#*#\n");
-    int * path1=make_path();
-    print_path(path1);
-    
-    
-    rev_nexts(beg, end);
-    city_info(&ca, p_a, READ);
-    ca.next_i=p_b;
-    city_info(&ca, p_a, WRITE);
-    city_info(&cc, p_c, READ);
-    cc.next_i=p_d;
-    city_info(&cc, p_c, WRITE);
-    
-    //rev_nexts(beg, end);
-    
-    int * path2=make_path();
-    print_path(path2);
-    printf("_*#*#\n\n");
-    assert(full_path(path2));
-    return;
-}
 void acbd_path(city *cij, int p_a, int p_b, int p_c, int p_d) // a->c b->d
-{ // TODO maybe changes cij
+{ 
     city cc[4]={cij[0],cij[1],cij[2],cij[3]};
     cc[0].next_i=p_c;
     cc[1].next_i=p_d;
@@ -3725,8 +3710,8 @@ void render_sub(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
     snprintf(ts, 79, "Time elapsed on solving is %.2lf sec",time_elapsed);
     printf("%s\n",ts);
     
-    render_text(renderer,font,50,Y_MAX-50,text);
-    render_text(renderer,font, 50, Y_MAX-25,ts);
+    render_text(renderer,font,50,Y_MAX-25,text);
+    render_text(renderer,font, 50, Y_MAX-10,ts);
 }
 
 
@@ -3840,8 +3825,8 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
     {
         city_info(&from,n , READ);
         city_info(&to, from.joint, READ);
-        if(0)// TODO was: (from.joint != NO_CITY)
-            thickLineColor(*renderer, from.x, from.y, to.x, to.y, 1, 0xFFF0FF00);
+        if(0)//(from.joint != NO_CITY) // (0)
+            thickLineColor(*renderer, from.x, from.y, to.x, to.y, 1, 0xFFF0FF00); // TODO correct joints
     }
     printf("\n");
 
@@ -3917,12 +3902,9 @@ void sdl_init(SDL_Window **window,SDL_Renderer **renderer,TTF_Font **font)
 }
 
 // ----------------------------------------------------------------------------- //
-int main(void)
+void prepare(char * file_name)
 {
-    assert(CITY_NUM >= 3);
-    clock_t begin = clock();
-
-#ifdef EXAMPLE_50
+    assert(strlen(file_name)<50);
     char *names[CITY_NUM+1]={NULL};
     int i=0;
     city cc={.visited = false,
@@ -3932,11 +3914,11 @@ int main(void)
           };
     
     char coord[30];
-    FILE * co_50 = fopen("tsp_coord_50.text","rt");
+    FILE * co_50 = fopen(file_name, "rt");
 	if(!co_50)
 	{
-	    fprintf(stderr,"Err opening file.\n");
-	    return 1;
+	    fprintf(stderr,"Err opening file: %s \n", file_name);
+	    exit(EXIT_FAILURE);
 	}
 	while(1)
 	{
@@ -3951,7 +3933,7 @@ int main(void)
         names[i] = malloc(NI_CNT*sizeof(char));
         for(int i2=0; i2<NI_CNT; i2++)
             *(names[i]+i2)='\0';
-        sprintf(names[i], "City_%d", i); // TODO remove City_
+        sprintf(names[i], "%d", i); // TODO remove City_
         cc.name=names[i];
        
         city_info(&cc,i,WRITE);
@@ -3960,6 +3942,17 @@ int main(void)
 	
 	// TODO free names[i]
 	fclose(co_50);
+}
+
+int main(void)
+{
+    assert(CITY_NUM >= 3);
+    clock_t begin = clock();
+
+#ifdef EXAMPLE_50 // "tsp_coord_50.text"
+    prepare("tsp_coord_float_50.text");
+#elif defined EXAMPLE_75
+    prepare("tsp_coord_float_75.text");
 #endif
     
     float dis;
