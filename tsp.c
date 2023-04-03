@@ -465,7 +465,8 @@ bool same_coor(city c1, city c2)
 bool lines_cross(city c1, city c2, city c3, city c4) // TODO check the internet , lines segment
 {
     //assert(c1.x != c3.x || c1.y != c3.y); // TODO more like this  asserts
-    
+    assert(strcmp(c1.name, c2.name));
+    assert(strcmp(c3.name, c4.name));
     
     assert(fabs(c2.x-c1.x) >EPS || fabs(c2.y-c1.y) >EPS);
     assert(fabs(c4.x-c3.x) >EPS || fabs(c4.y-c3.y) >EPS);
@@ -481,7 +482,8 @@ bool lines_cross(city c1, city c2, city c3, city c4) // TODO check the internet 
     float a = (c2.y - c1.y) / (c2.x - c1.x);
     float b = c1.y - a * c1.x;
 
-    assert(c4.x != c3.x);
+    //assert(c4.x != c3.x); // TODO temporarely removed
+    
     float c = (c4.y - c3.y) / (c4.x - c3.x);
     float d = c3.y - c * c3.x;
 
@@ -1293,6 +1295,10 @@ bool same_city(city c1, city c2)
         {
             assert( fabs(c1.x-c2.x)<EPS);
             assert(fabs(c1.y-c2.y)<EPS);
+            assert(c1.visited==c2.visited);
+            assert(c1.on_cycle==c2.on_cycle);
+            assert(c1.joint==c2.joint);
+            assert(c1.next_i==c2.next_i);
             return true;
         }
     return false;
@@ -1379,6 +1385,7 @@ bool convex_hull(int * vertices, int * vert_num,int cycle)
     (*vert_num) = size;
     
     free(curr_cities);
+    free(hull);
     return true;
 }
 ///-------------------------------------------------------------------------------///
@@ -1399,7 +1406,7 @@ void print_joints(int cycle)
 
 // TODO joints between neighbor cycles
 // joint outside , examine both directions of joints
-void joints(int cycle) 
+void joints(int cycle)  // TODO render and correct joints
 {
     assert(cycle >= NOT_OC);
     assert(cycle <= MAX_CYCLES);
@@ -1861,7 +1868,7 @@ typedef struct st_t st_t;
 
 void print_path(int *path)
 {
-    //printf("......\n");
+    printf("^^ : ");
     int i;
     for(i = 0; i < CITY_NUM + 1; i++)
         path[i]==NO_CITY ? printf("- "):printf("%d ", path[i]);
@@ -2727,6 +2734,501 @@ st_t init(void)
 }
 
 //    ======================================    //
+bool full_path(int * path);
+
+void swap(int* a, int* b)
+{
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+int compare_ints_rev(const void* a, const void* b)
+{
+    int arg1 = *(const int*)a;
+    int arg2 = *(const int*)b;
+ 
+    if (arg1 < arg2) return -1;
+    if (arg1 > arg2) return 1;
+    return 0;
+}
+bool path_is_unique(int * path)
+{
+    bool r=true;
+    int i;
+    int * path2 = malloc((CITY_NUM+1)*sizeof(int));
+    for(i=0; i<CITY_NUM+1; i++)
+        path2[i]=path[i];
+    
+    print_path(path2);
+    qsort(path2, CITY_NUM+1, sizeof(int), compare_ints_rev);
+    if(path2[0]!=0 || path2[1]!=0)
+        r= false;
+    for(i=2; i<CITY_NUM+1; i++)
+        if(path2[i]!=i-1)
+            r= false;
+    print_path(path2);
+    free(path2);
+    return r;
+}
+
+float path_dist(int * path)
+{
+    float dis=0.0;
+    int i;
+    city from,to;
+    assert(path[0]==0);
+    assert(path[CITY_NUM]==0);
+    //assert(full_path(path));
+    print_path(path);
+    
+    for(i=0; i<CITY_NUM; i++)
+    {
+        city_info(&from,path[i],READ);
+        city_info(&to, path[i+1], READ);
+        //assert(from.next_i==path[i+1]); // TODO maybe return -1.0
+        
+        dis += distance(from,to);
+    }
+    assert(path[i+1]==0);
+    return dis;
+}
+// ============================ //
+bool full_path(int * path)
+{
+    int i;
+    city ci;
+    assert(path[0]==0);
+    assert(path[CITY_NUM]==0);
+    print_path(path);
+    for(i=0; i<CITY_NUM; i++)
+    {
+        city_info(&ci, path[i], READ);
+        if(ci.next_i != path[i+1])
+            return false;
+    }
+    //assert(path_is_unique(path));
+    if(!path_is_unique(path))
+        return false;
+    return true;
+}
+int * make_path(void)
+{
+    int * new_path=calloc(CITY_NUM+2, sizeof(int));
+    int i;
+    city ci;
+    new_path[0]=0;
+    city_info(&ci, 0, READ);
+    for(i=1; i<CITY_NUM; i++)
+    {
+        int next=ci.next_i;
+        city_info(&ci, next, READ);
+        new_path[i]=next;
+    }
+    assert(new_path[0]==0);
+    assert(new_path[CITY_NUM]==0);
+    //assert(path_is_unique(new_path));
+    
+    print_path(new_path);
+    return new_path;
+}
+// +++++++++++++++++++++++++++++ //
+
+bool same_path(int * path1, int * path2)
+{
+    int i;
+    for(i=0; i<CITY_NUM+1; i++)
+        if(path1[i]!=path2[i])
+        {
+            printf("path1[%d] is %d path2[%d] is %d \n",i,path1[i],i,path2[i]);
+            return false;
+        }
+    return true;
+}
+
+// ============================= //
+void path_to_cities(int * path)
+{
+    int i;
+    city ci;
+    //assert(full_path(path));
+    for(i=0; 1; i++)//i<CITY_NUM
+    {
+        city_info(&ci, path[i], READ);
+        ci.next_i=path[i+1];
+        city_info(&ci, path[i], WRITE);
+        if(path[i+1]==0)
+            break;
+    }
+}
+
+void rev_nexts( int beg, int end) // TODO ongoing:
+{ 
+    city bc,ec;
+    city ci;
+    int i;
+    int * part = calloc(CITY_NUM+2, sizeof(int));
+    
+    if(beg==end)
+        return;
+    
+    //city_info(&ci, beg, READ);
+    city_info(&ci, end, READ);
+    city_info(&bc, beg, READ);
+    city_info(&ec, end, READ);
+    if(same_city(bc, ec))
+        return;
+    
+    part[0]=end;//beg;
+    for(i=1; i<CITY_NUM+1; i++) // fill "part"
+    {
+        if(part[i]==beg)//end
+            break;
+        if(same_city(ci, bc))//ec
+            break;
+        part[i] = ci.next_i;
+        city_info(&ci, ci.next_i, READ); 
+    }
+    //part[i]=beg;//end;
+    i--;
+    printf("\n$@$@ \n");
+    //printf("beg: %d end is %d i is %d :\n",beg,end,i);
+    for(int k=0; k<=i; k++)
+    {
+        printf("%d->",part[k]);
+    }
+    printf("\n");
+    
+    // TODO maybe acbd here
+    
+    int j;
+    int * path = calloc(CITY_NUM+2, sizeof(int));
+    //int * path=make_path();
+    int * orig_path=make_path();
+    for(j=0; j<CITY_NUM; j++) // stage 1
+    {
+        if(orig_path[j]==end || orig_path[j]==beg )
+            break;
+        path[j]=orig_path[j];
+    }
+    //j++;
+    path[j]=beg;
+    j++;
+    //j=CITY_NUM-j;
+    //i=CITY_NUM-i;
+    i--;
+    printf("\n## beg: %d end is %d i is %d j is %d path[i] is %d path[j] is %d:\n",beg,end,i,j,path[i],path[j]);
+    print_path(path);
+    while(j<CITY_NUM) // stage 2
+    {
+        path[j]=part[i];
+        //if(part[i]==beg || part[i]==end)
+        if(i==0)
+            break;
+        j++;
+        i--;
+    }
+    print_path(path);
+    for( j++; true; j++) // stage 3
+    {
+        if(path[j]==0)
+            break;
+        path[j]=orig_path[j];
+    }
+    
+    print_path(path);
+    path_to_cities(path);
+    /*
+    i=CITY_NUM-i; // CITY_NUM-i
+    for(; i>=1; i--) // reverse beg..end : end..beg
+    { // TODO correct offset
+        assert(i>0);
+        assert(i<=CITY_NUM+1);
+        city_info(&ci, part[i], READ);
+        ci.next_i=part[i-1];
+        printf("%d:%d ",i-1,part[i-1]);
+        city_info(&ci, part[i], WRITE); 
+    }*/
+    // TODO use path_to_cities/1
+    
+    printf("\n");
+    int * new_path=make_path();
+    print_path(new_path);
+    printf("$$@@\n\n");
+    free(part);
+    return;
+}
+
+void undo_rev_nexts( int beg, int end, int p_a, int p_b, int p_c, int p_d) // TODO seems extra
+{
+    assert(beg != end);
+    city ca,cc;
+    //city bb;
+    
+    printf("\n*#*#\n");
+    int * path1=make_path();
+    print_path(path1);
+    
+    
+    rev_nexts(beg, end);
+    city_info(&ca, p_a, READ);
+    ca.next_i=p_b;
+    city_info(&ca, p_a, WRITE);
+    city_info(&cc, p_c, READ);
+    cc.next_i=p_d;
+    city_info(&cc, p_c, WRITE);
+    
+    //rev_nexts(beg, end);
+    
+    int * path2=make_path();
+    print_path(path2);
+    printf("_*#*#\n\n");
+    assert(full_path(path2));
+    return;
+}
+void acbd_path(city *cij, int p_a, int p_b, int p_c, int p_d) // a->c b->d
+{ // TODO maybe changes cij
+    city cc[4]={cij[0],cij[1],cij[2],cij[3]};
+    cc[0].next_i=p_c;
+    cc[1].next_i=p_d;
+    city_info(&cc[0], p_a, WRITE);
+    city_info(&cc[1], p_b, WRITE);
+}
+void reset_abcd(city * cc,int p_a, int p_b, int p_c, int p_d) 
+{
+    city_info(&cc[0], p_a, WRITE);
+    city_info(&cc[1], p_b, WRITE);
+    city_info(&cc[2], p_c, WRITE);
+    city_info(&cc[3], p_d, WRITE);
+}
+bool record_path_dist(int * path)
+{
+    float min_dist, curr_dist;
+    low_dist(&min_dist,READ);
+    curr_dist=path_dist(path);
+    if(curr_dist<min_dist)
+    {
+        path_keeper(path, WRITE);
+        low_dist(&curr_dist,WRITE);
+        return true;
+    }
+    return false;
+}
+
+bool single_uncross(int * path, city *cij,int a, int b, int c, int d) // TODO try other possibilities like c->a d->b
+{
+    assert(path!=NULL);
+    assert(full_path(path));
+    assert(path[0]==0);
+    assert(path[CITY_NUM]==0);
+    assert(path_is_unique(path));
+    
+    //bool r=false;
+    int * new_path;
+    bool fp;
+    //city cc[4]={cij[0],cij[1],cij[2],cij[3]};
+    
+    int *path1=make_path();
+    printf("&& :\n");
+    new_path=make_path();
+    assert(same_path(new_path, path1));
+    print_path(path);
+    printf("____________________________________________________\n");
+    if(1) // TODO for debugging
+    {
+        rev_nexts(path[d], path[a]);
+        //undo_rev_nexts(path[a], path[d], path[a], path[b], path[c], path[d]); // reset
+        path_to_cities(path1);
+        int *path0=make_path();
+        assert(same_path(path0, path1)); // also for b <-> c
+        rev_nexts(path[b], path[c]);
+        //undo_rev_nexts(path[c], path[b], path[a], path[b], path[c], path[d]); // reset
+        path_to_cities(path1);
+        int *path4=make_path();
+        assert(same_path(path4, path1));
+    }
+    
+    acbd_path(&cij[0], path[a], path[b], path[c], path[d]);
+    new_path=make_path();
+    fp= full_path(new_path);
+    if(fp==true)
+    {
+        // TODO dist , path
+        bool rpd=record_path_dist(new_path);
+        if(rpd==true)
+        {
+            path_to_cities(new_path);
+            return true;
+        }
+    }
+    
+    printf("++ :\n");
+    /*city bc,ec;
+    rev_nexts(path[d], path[a]); // or path[b] path[c]
+    city_info(&bc, path[d], READ);
+    city_info(&ec, path[a], READ);
+    bc.next_i = ec.next_i;
+    city_info(&bc, path[d], WRITE);
+    for(int j=0; j<= CITY_NUM; j++)
+    {
+        city cj;
+        city_info(&cj, j, READ);
+        if(cj.next_i==path[d])
+        {
+            cj.next_i=path[a];
+            city_info(&cj, j, WRITE); // edge case
+            break;
+        }
+    }*/
+    path_to_cities(path1);
+    rev_nexts(path[d], path[a]);
+    acbd_path(&cij[0], path[a], path[b], path[c], path[d]);
+    
+    new_path=make_path();
+    print_path(new_path);
+    fp= full_path(new_path);
+    if(fp==true)
+    {
+        // TODO dist , path
+        bool rpd=record_path_dist(new_path);
+        if(rpd==true)
+        {
+            path_to_cities(new_path);
+            return true;
+        }
+    }
+    
+    //rev_nexts(path[a], path[d]); // reset
+    
+    //undo_rev_nexts(path[a], path[d], path[a], path[b], path[c], path[d]);
+    //reset_abcd(&cc[0], path[a], path[b], path[c], path[d]);
+    //int *path2=make_path();
+    
+    path_to_cities(path1);
+    rev_nexts(path[b], path[c]);
+    acbd_path(&cij[0], path[a], path[b], path[c], path[d]);
+    
+    printf("+- :\n");
+    new_path=make_path();
+    fp= full_path(new_path);
+    if(fp==true)
+    {
+        // TODO dist , path
+        bool rpd=record_path_dist(new_path);
+        if(rpd==true)
+        {
+            path_to_cities(new_path);
+            return true;
+        }
+    }
+    
+    path_to_cities(path1);
+    rev_nexts(path[c], path[b]);
+    acbd_path(&cij[0], path[a], path[b], path[c], path[d]);
+    
+    printf("-+ :\n");
+    new_path=make_path();
+    fp= full_path(new_path);
+    if(fp==true)
+    {
+        // TODO dist , path
+        bool rpd=record_path_dist(new_path);
+        if(rpd==true)
+        {
+            path_to_cities(new_path);
+            return true;
+        }
+    }
+    
+    //rev_nexts(path[c], path[b]); // reset
+    
+    //undo_rev_nexts(path[c], path[b],path[a], path[b], path[c], path[d]);
+    //reset_abcd(&cc[0], path[a], path[b], path[c], path[d]);
+    path_to_cities(path1);
+    
+    int *path3=make_path();
+    //assert(same_path(path1, path2));
+    //assert(same_path(path2, path3));
+    assert(same_path(path1, path3));
+    // TODO if(r==true)
+    return false;    
+}
+
+bool alt_path(int * path, city *cij, int a, int b, int c, int d)// original : a->b c->d
+{ 
+    assert(path!=NULL);
+    assert(full_path(path));
+    assert(path[0]==0);
+    assert(path[CITY_NUM]==0);
+    assert(path_is_unique(path));
+    
+    
+    // TODO turn into a single function:
+    return single_uncross(path, cij, a, b, c, d);
+    // a->c b->d
+    //single_uncross(path, cij, a, c, b, d);
+    
+    // TODO call rev_nexts/2 to be back again
+    // c->a d->b
+    
+}
+bool post_search(int * path) // correct line segments crosses
+{ // TODO correct min_dist , cities array , path
+    int i,j;
+    city cij[4];
+    //city cc[4];
+    assert(path!=NULL);
+    int * new_path=calloc(CITY_NUM + 2, sizeof(int));
+    //int * new_path2=calloc(CITY_NUM + 1, sizeof(int));
+    for(i=0; i<CITY_NUM; i++)
+    {
+        new_path[i]=path[i];
+        //new_path2[i]=path[i];
+    }
+    //float p_dis=path_dist(path);
+    
+    assert(full_path(path));
+    assert(path[0]==0);
+    assert(path[CITY_NUM]==0);
+    
+    for(i=0; i<CITY_NUM-1; i++)
+        for(j=i+1; j<CITY_NUM; j++) // i i+1 >< j j+1
+        {
+            city_info(&cij[0], path[i], READ);
+            city_info(&cij[1], path[i+1], READ);
+            city_info(&cij[2], path[j], READ);
+            city_info(&cij[3], path[j+1], READ);
+            
+            if(lines_cross(cij[0],cij[1],cij[2],cij[3])) // TODO two possible changes
+            {
+                assert(full_path(path));
+                // TODO try 4 * 2 possibilities
+                // TODO multiple functions
+                
+                // 0 2 , 1 3
+                /*bool aw1=alt_ways(path, new_path, &cij[0], i, j, i+1, j+1); // TODO remove these
+                bool aw2=alt_ways(path, new_path, &cij[0], i, j, j+1, i+1);
+                bool aw3=alt_ways(path, new_path, &cij[0], j, i, i+1, j+1);
+                bool aw4=alt_ways(path, new_path, &cij[0], j, i, j+1, i+1);
+                assert(aw1 || aw2 || aw3 || aw4);*/
+                // 0 3 , 1 2
+                bool ap=alt_path(path, &cij[0], i, i+1, j, j+1);
+                
+                assert(ap==true);
+                //path_keeper(new_path, READ);
+                //assert(full_path(new_path));
+                //return new_path;
+                //return path;
+                //continue; // TODO 
+                path_keeper(path, READ);
+                return false;
+            }
+        }
+    
+    //return new_path;
+    return true;
+}
+
 void A_star_algorithm(void) // TODO use another way to find all solutions
 {// Breadth first search
     int i,max_i=0;
@@ -3040,6 +3542,45 @@ void A_star_algorithm(void) // TODO use another way to find all solutions
     if(!sol1_flag)
         low_dist(&min_dist,WRITE);
     
+    print_path(best_path);
+    assert(path_is_unique(best_path));
+    int *path=best_path;
+    //int* new_path;
+    while(1) // new code
+    {
+        //new_path=post_search(path);
+        bool finished=post_search(path);
+        if(finished)
+            break;
+        /*for(int j=0; j<=CITY_NUM; j++)
+        {
+            if(new_path[j] != path[j])
+            {
+                path=new_path;
+                continue;
+            }
+        }
+        */
+        //if(same_path(path, new_path))
+            //break;
+        path_keeper(path, READ);
+    }
+    print_path(path);
+    assert(path_is_unique(path));
+    assert(full_path(path));
+    for(int j=0; j<CITY_NUM; j++)
+    {
+        city cj;
+        best_path[j]=path[j];
+        city_info(&cj, path[j], READ);
+        assert(cj.next_i==path[j+1]);
+    }
+    best_path[CITY_NUM]=0;
+    low_dist(&min_dist,READ);
+    assert(path_is_unique(best_path));
+    //free(path);
+    //free(new_path);
+    
     printf("min_dist is %.1lf max_i is %d i is %d bc is %d solutions: %d s1 is %d\n"
         , min_dist,max_i,i,best_changed,solutions,sol1_flag);
     print_path(best_path);
@@ -3181,7 +3722,7 @@ void render_sub(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
     SDL_Rect rec={.x=50, .y=Y_MAX-50, .w=width, .h=15};
     SDL_RenderCopy(*renderer, tx, NULL, &rec);
     */
-    snprintf(ts, 79, "Time elapsed on computing is %.2lf sec",time_elapsed);
+    snprintf(ts, 79, "Time elapsed on solving is %.2lf sec",time_elapsed);
     printf("%s\n",ts);
     
     render_text(renderer,font,50,Y_MAX-50,text);
@@ -3241,6 +3782,8 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
         render_text(renderer, font, x_val,  y_val, all_text);//rest.name);//name_i);
     }
 
+    // TODO render joints
+
     //int nolines = 1;
     //int next = -1;
     //i=0;
@@ -3293,7 +3836,14 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
     printf("\n");
     //print_nexts();
     
-    
+    for(int n=0; n<CITY_NUM; n++)
+    {
+        city_info(&from,n , READ);
+        city_info(&to, from.joint, READ);
+        if(0)// TODO was: (from.joint != NO_CITY)
+            thickLineColor(*renderer, from.x, from.y, to.x, to.y, 1, 0xFFF0FF00);
+    }
+    printf("\n");
 
     //city c0, cl;
     //city_info(&c0, 0, READ);
