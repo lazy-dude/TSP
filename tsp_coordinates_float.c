@@ -15,8 +15,6 @@ int main(void)
     
     srand(time(NULL));
     float xrand,yrand;
-    //int random_variable = rand();
-    //printf("Random value on [0,%d]: %d\n", RAND_MAX, random_variable);
  
     for (int n=0; n < CITY_NUM; n++) {
         xrand = (rand()/(double)RAND_MAX)* X_MAX;
