@@ -15,7 +15,7 @@
 #include <SDL2/SDL2_gfxPrimitives.h>
 #include <SDL2/SDL_ttf.h>
 const char *title = "TSP problem , graph theory , geometry";
-#define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf" // use font location for Windows
+#define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf" // TODO use font location for Windows
 
 const SDL_Color bg={255, 255, 255,255}; // back_ground
 const SDL_Color pol={200, 200, 200, 0xFF}; // polygon
@@ -50,6 +50,16 @@ const SDL_Color green ={0,255,0, 255};
 #define Y_MAX 700
 #define CITY_NUM 200
 #endif
+// ------------------------------------------ //
+
+//#define DEBUG
+#ifdef DEBUG
+#define debug_printf printf
+#else
+#define debug_printf(...)  ((void)0)
+#endif
+#define UNUSED(x) (void)(x)
+
 // ------------------------------------------ //
 
 #define ALL_VISITED -1
@@ -558,7 +568,7 @@ void print_nexts(void)
     int next_i=c0.next_i;
     for(int n=0; n< CITY_NUM; n++)
     {
-        printf("prev_i is %d next_i is %d\n",prev_i,next_i);
+        debug_printf("prev_i is %d next_i is %d\n",prev_i,next_i);
     
         city from,to;
         city_info(&from, prev_i, READ);
@@ -572,28 +582,30 @@ void print_nexts(void)
 
 void print_vertices(int const *vertices, int vert_num)
 {
+    UNUSED(vertices);
     int i;
     assert(vert_num>=0);
     assert(vert_num<=CITY_NUM);
     for(i = 0; i < vert_num; i++)
-        printf("$ %d ", vertices[i]);
-    printf("\n");
+        debug_printf("$ %d ", vertices[i]);
+    debug_printf("\n");
 }
 
 void print_no_cycle(void)
 {
     int i;
     
-    printf("cycles : ");
+    debug_printf("cycles : ");
     for(i = 0; i < CITY_NUM; i++)
     {
         city ci;
         city_info(&ci, i, READ);
         
-        printf(" cycle[%d] is %d ", i, ci.on_cycle);
+        debug_printf(" cycle[%d] is %d ", i, ci.on_cycle);
     }
-    printf("\n");
+    debug_printf("\n");
 }
+
 
 void expand_cycle(int *vertices, int vert_num, int out_ind)
 {
@@ -637,7 +649,7 @@ void expand_cycle(int *vertices, int vert_num, int out_ind)
             }
         }
     if(v1 == v2)
-        printf("v1 is %d v2 is %d out_ind is %d \n", v1, v2, out_ind);
+        debug_printf("v1 is %d v2 is %d out_ind is %d \n", v1, v2, out_ind);
     assert(v1 != v2);
 
     if(v2 == vertices[vert_num - 1] || v1 == vertices[vert_num - 1])
@@ -856,7 +868,7 @@ void create_polygon(int nvert, float **vertx, float **verty)
             cv[2].y=(*verty)[j];
             cv[3].x=(*vertx)[j+1];
             cv[3].y=(*verty)[j+1];
-            printf("nvert is %d i is %d j is %d\n",nvert,i,j);
+            debug_printf("nvert is %d i is %d j is %d\n",nvert,i,j);
             assert(!segments_intersect(cv[0],cv[1],cv[2],cv[3]));
         }
     
@@ -1037,17 +1049,17 @@ bool convex_hull(int * vertices, int * vert_num,int cycle)
 ///-------------------------------------------------------------------------------///
 void print_joints(int cycle)
 {
-    printf("joints(cycle is %d): ", cycle);
+    debug_printf("joints(cycle is %d): ", cycle);
     int i;
     for(i = 0; i < CITY_NUM; i++)
     {
         city ci;
         city_info(&ci, i, READ);
         if(ci.on_cycle == cycle && ci.joint!=NO_CITY)
-            printf("vertex[%d] is joint to %d ", i, ci.joint);
+            debug_printf("vertex[%d] is joint to %d ", i, ci.joint);
     }
 
-    printf("\n");
+    debug_printf("\n");
 }
 
 // joints between neighbor cycles
@@ -1081,7 +1093,7 @@ void joints(int cycle)
         }
     }
     
-    printf("cycle is %d oj_cnt is %d j_cnt is %d\n",cycle,oj_cnt,j_cnt);
+    debug_printf("cycle is %d oj_cnt is %d j_cnt is %d\n",cycle,oj_cnt,j_cnt);
     
     if(oj_cnt<=2)
     {
@@ -1237,7 +1249,7 @@ void joints(int cycle)
                     cjo.joint = in_joint[j];
                     city_info(&cjo, out_joint[i], WRITE);
                     chosen_ci = in_joint[j];
-                    printf("oji is %d ijj is %d\n", out_joint[i], in_joint[j]);
+                    debug_printf("oji is %d ijj is %d\n", out_joint[i], in_joint[j]);
                 }
             }
         
@@ -1294,8 +1306,11 @@ void joints(int cycle)
                 }
             }
         }
-        
-        printf("nc_cnt is %d\n",nc_cnt);
+#ifdef DEBUG
+        debug_printf("nc_cnt is %d\n",nc_cnt);
+#else
+        (void)nc_cnt;
+#endif
     }
 
     print_joints(cycle - 1);
@@ -1325,9 +1340,9 @@ int *next_city(int const *const vertices, int vcnt, int i)
     {
         city vc;
         city_info(&vc, vertices[ind], READ);
-        printf(" %d ",vc.on_cycle);
+        debug_printf(" %d ",vc.on_cycle);
     }
-    printf("\n");
+    debug_printf("\n");
 
     int *next_node = calloc(MAX_NEXT, sizeof(int));
     for(int ni_ctr = 0; ni_ctr < MAX_NEXT; ni_ctr++)
@@ -1448,21 +1463,21 @@ int compare_ints(const void *a, const void *b)
 void print_keeper(void)
 {
     int i;
-    printf("------\n");
+    debug_printf("------\n");
     int nk[MAX_NEXT] = {-1};
     for(i = 0; i < CITY_NUM; i++)
     {
-        printf("%d : ", i);
+        debug_printf("%d : ", i);
         nexts_keeper(nk, i, READ);
 
         for(int j = 0; j < MAX_NEXT; j++)
         {
             if(nk[j]!=NO_CITY)
-                printf("%d,", nk[j]);
+                debug_printf("%d,", nk[j]);
             else
-                printf("-,");
+                debug_printf("-,");
         }
-        printf("\n");
+        debug_printf("\n");
     }
     return;
 }
@@ -1502,11 +1517,11 @@ typedef struct st_t st_t;
 
 void print_path(int *path)
 {
-    printf("^^ : ");
+    debug_printf("^^ : ");
     int i;
     for(i = 0; i < CITY_NUM + 1; i++)
-        path[i]==NO_CITY ? printf("- "):printf("%d ", path[i]);
-    printf("\n");    
+        path[i]==NO_CITY ? debug_printf("- "):debug_printf("%d ", path[i]);
+    debug_printf("\n");    
 }
 
 void print_graph(void)
@@ -1514,33 +1529,33 @@ void print_graph(void)
     int i;
     for(i = 0; i < CITY_NUM; i++)
     {
-        printf("%d : ", i);
+        debug_printf("%d : ", i);
 
         for(int j = 0; j < MAX_NEXT; j++)
         {
             int index = i * MAX_NEXT + j;
             int cnum=g_vertex[index];
-            cnum==NO_CITY? printf("-,"):printf("%d,", cnum);
+            cnum==NO_CITY? debug_printf("-,"):debug_printf("%d,", cnum);
         }
-        printf("\n");
+        debug_printf("\n");
     }
 }
 void print_state(st_t *states_ptr)
 {
     int i;
-    printf("======\n");
-    printf("f is %.1lf step is %d\n"
+    debug_printf("======\n");
+    debug_printf("f is %.1lf step is %d\n"
         ,(states_ptr)->f,(states_ptr)->step);
     
-    printf("path : ");
+    debug_printf("path : ");
     for(i = 0; i < CITY_NUM + 1; i++)
-        (states_ptr)->path[i]==NO_CITY ? printf("- "):printf("%d ", (states_ptr)->path[i]);
-    printf("\n");   
+        (states_ptr)->path[i]==NO_CITY ? debug_printf("- "):debug_printf("%d ", (states_ptr)->path[i]);
+    debug_printf("\n");   
     
-    printf("open : ");
+    debug_printf("open : ");
     for(i = 0; i < CITY_NUM + 1; i++)
-        (states_ptr)->open[i]==NO_CITY ? printf("- "):printf("%d ", (states_ptr)->open[i]);
-    printf("\n");   
+        (states_ptr)->open[i]==NO_CITY ? debug_printf("- "):debug_printf("%d ", (states_ptr)->open[i]);
+    debug_printf("\n");   
 
 }
 
@@ -1586,23 +1601,23 @@ void pre_search(int *vertices, int vcnt)
 {
     int *nexts;
     int i;
-    printf("vcnt is %d \n", vcnt);
+    debug_printf("vcnt is %d \n", vcnt);
     print_vertices(vertices, vcnt);
     for(i = 0; i < CITY_NUM; i++)
     {
         nexts = next_city(vertices, vcnt, i);
-        printf("%d : nc[0] is %d nc[1] is %d sc is %d,%d,%d,%d nc[5] is %d\n", i, 
+        debug_printf("%d : nc[0] is %d nc[1] is %d sc is %d,%d,%d,%d nc[5] is %d\n", i, 
             nexts[0], nexts[1], nexts[2], nexts[3], nexts[4], nexts[5], nexts[6]);
         if(city_on_vertices(i, vertices, vcnt))
             nexts_keeper(nexts, i, WRITE);
         free(nexts);
     }
     
-    printf("---\n");
+    debug_printf("---\n");
     int nk[MAX_NEXT] = {-1};
     for(i = 0; i < CITY_NUM; i++)
     {
-        printf("%d : ", i);
+        debug_printf("%d : ", i);
         nexts_keeper(nk, i, READ);
         qsort(nk, MAX_NEXT, sizeof(int), compare_ints);
         nexts_keeper(nk, i, WRITE);
@@ -1610,11 +1625,11 @@ void pre_search(int *vertices, int vcnt)
         for(int j = 0; j < MAX_NEXT; j++)
         {
             if(nk[j]!=NO_CITY)
-                printf("%d,", nk[j]);
+                debug_printf("%d,", nk[j]);
             else
-                printf("-,");
+                debug_printf("-,");
         }
-        printf("\n");
+        debug_printf("\n");
     }
 }
 
@@ -1790,7 +1805,7 @@ int path_len(int * const path)
     for(len=0 ;len<CITY_NUM+1 && path[len]!=NO_CITY ; len++)
         continue;
     len--;
-    printf("len is %d\n",len);
+    debug_printf("len is %d\n",len);
     assert(len>=0);
     assert(len<CITY_NUM+1);
     
@@ -1799,7 +1814,7 @@ int path_len(int * const path)
 bool complement(st_t * state_ptr)
 {
     
-    printf(" #$#$#$ \n");
+    debug_printf(" #$#$#$ \n");
     print_state(state_ptr);
     
     int i;
@@ -1826,7 +1841,7 @@ int last_path(st_t * state_ptr)
 
 void place(int ci, st_t * state_ptr)
 {
-    printf("---- entered place ----\n");
+    debug_printf("---- entered place ----\n");
     assert(state_ptr->open[CITY_NUM]==NO_CITY);
     assert(ci != NO_CITY);
     int lp = last_path(state_ptr);
@@ -1854,8 +1869,8 @@ void place(int ci, st_t * state_ptr)
     
     states_keeper(state_ptr,WRITE);
     print_state(state_ptr);
-    printf("ci is %d\n",ci);
-    printf("---- leave place ----\n");
+    debug_printf("ci is %d\n",ci);
+    debug_printf("---- leave place ----\n");
 }
 
 bool adj(int r, int ind)
@@ -1932,7 +1947,7 @@ int compare(const void* a, const void* b)
 } 
 void sort_open(st_t * state_ptr)
 {
-    printf("++++ entered sort_open ++++\n");
+    debug_printf("++++ entered sort_open ++++\n");
     print_state(state_ptr);
     
     int i;
@@ -1950,7 +1965,7 @@ void sort_open(st_t * state_ptr)
     }
     
     print_state(state_ptr);
-    printf("++++ leave sort_open ++++\n");
+    debug_printf("++++ leave sort_open ++++\n");
     
 }
 void fill_open(st_t * state_ptr,int ind)
@@ -1994,7 +2009,7 @@ void multiple_open(st_t * state_ptr,int ind)
 
 int banish(st_t * state_ptr) 
 {
-    printf("@@@ entered banish @@@\n");
+    debug_printf("@@@ entered banish @@@\n");
     print_state(state_ptr);
     
     int r=0; 
@@ -2022,15 +2037,16 @@ int banish(st_t * state_ptr)
     }
     
     int j=0;
-    printf("i is %d , r is %d\n",i,r);
+    debug_printf("i is %d , r is %d\n",i,r);
     
     assert(r!=NO_CITY);
     
     j=0;
+    UNUSED(j);
     
     assert(r!= NO_CITY);
     
-    printf("r is %d i is %d j is %d lp is %d\n",r,i,j,lp);
+    debug_printf("r is %d i is %d j is %d lp is %d\n",r,i,j,lp);
     
     improve_open(r,state_ptr);
     
@@ -2039,7 +2055,7 @@ int banish(st_t * state_ptr)
     state_ptr->step++;
     states_keeper(state_ptr,WRITE);
     print_state(state_ptr);
-    printf("@@@ leaving banish @@@\n");
+    debug_printf("@@@ leaving banish @@@\n");
     
     return r;
 }
@@ -2209,7 +2225,7 @@ bool same_path(int * path1, int * path2)
     for(i=0; i<CITY_NUM+1; i++)
         if(path1[i]!=path2[i])
         {
-            printf("path1[%d] is %d path2[%d] is %d \n",i,path1[i],i,path2[i]);
+            debug_printf("path1[%d] is %d path2[%d] is %d \n",i,path1[i],i,path2[i]);
             return false;
         }
     return true;
@@ -2265,13 +2281,13 @@ void rev_nexts( int beg, int end)
     }
     
     i--;
-    printf("\n$@$@ \n");
+    debug_printf("\n$@$@ \n");
     
     for(int k=0; k<=i; k++)
     {
-        printf("%d->",part[k]);
+        debug_printf("%d->",part[k]);
     }
-    printf("\n");
+    debug_printf("\n");
     
     int j;
     int * path = calloc(CITY_NUM+2, sizeof(int));
@@ -2288,7 +2304,7 @@ void rev_nexts( int beg, int end)
     j++;
     
     i--;
-    printf("\n## beg: %d end is %d i is %d j is %d path[i] is %d path[j] is %d:\n"
+    debug_printf("\n## beg: %d end is %d i is %d j is %d path[i] is %d path[j] is %d:\n"
         ,beg,end,i,j,path[i],path[j]);
     print_path(path);
     while(j<CITY_NUM) // stage 2
@@ -2311,10 +2327,10 @@ void rev_nexts( int beg, int end)
     print_path(path);
     path_to_cities(path);
     
-    printf("\n");
+    debug_printf("\n");
     int * new_path=make_path();
     print_path(new_path);
-    printf("$$@@\n\n");
+    debug_printf("$$@@\n\n");
     free(part);
     return;
 }
@@ -2361,11 +2377,11 @@ bool single_uncross(int * path, city *cij,int a, int b, int c, int d)
     bool fp;
     
     int *path1=make_path();
-    printf("&& :\n");
+    debug_printf("&& :\n");
     new_path=make_path();
     assert(same_path(new_path, path1));
     print_path(path);
-    printf("____________________________________________________\n");
+    debug_printf("____________________________________________________\n");
 #ifdef DEBUG 
     rev_nexts(path[d], path[a]);
         
@@ -2392,7 +2408,7 @@ bool single_uncross(int * path, city *cij,int a, int b, int c, int d)
         }
     }
     
-    printf("++ :\n");
+    debug_printf("++ :\n");
     
     path_to_cities(path1);
     rev_nexts(path[d], path[a]);
@@ -2415,7 +2431,7 @@ bool single_uncross(int * path, city *cij,int a, int b, int c, int d)
     rev_nexts(path[b], path[c]);
     acbd_path(&cij[0], path[a], path[b], path[c], path[d]);
     
-    printf("+- :\n");
+    debug_printf("+- :\n");
     new_path=make_path();
     fp= full_path(new_path);
     if(fp==true)
@@ -2432,7 +2448,7 @@ bool single_uncross(int * path, city *cij,int a, int b, int c, int d)
     rev_nexts(path[c], path[b]);
     acbd_path(&cij[0], path[a], path[b], path[c], path[d]);
     
-    printf("-+ :\n");
+    debug_printf("-+ :\n");
     new_path=make_path();
     fp= full_path(new_path);
     if(fp==true)
@@ -2528,8 +2544,8 @@ void A_star_algorithm(void)
     path_keeper(path0,READ);
     print_path(path0);
 
-    printf("++++++++++++++++++++++++++++++++++++++++ ++++++++++++++++++++++++++++++++++++++++\n");
-    printf("min_dist is %lf\n", min_dist);
+    debug_printf("++++++++++++++++++++++++++++++++++++++++ ++++++++++++++++++++++++++++++++++++++++\n");
+    debug_printf("min_dist is %lf\n", min_dist);
 
     *state_ptr=init();
     states_keeper(state_ptr, WRITE);
@@ -2675,7 +2691,7 @@ void A_star_algorithm(void)
             state_ptr->open[0]=NO_CITY;
             assert(path_is_full(state_ptr));
             print_state(state_ptr);
-            printf("lr is %d\n",lr);
+            debug_printf("lr is %d\n",lr);
             
             city cbl,cl,c0;
             city_info(&cbl,state_ptr->path[CITY_NUM-2],READ);
@@ -2730,7 +2746,7 @@ void A_star_algorithm(void)
             
                 lp = state_ptr->path[j];
                 assert(lp!=NO_CITY);
-                printf("lp is %d j is %d\n",lp,j);
+                debug_printf("lp is %d j is %d\n",lp,j);
             
                 int k=j;
                 int i2=i;
@@ -2805,7 +2821,7 @@ void A_star_algorithm(void)
         city cj;
         city_info(&cj, j, READ);
     }
-    printf("\n");
+    debug_printf("\n");
     
     if(!sol1_flag)
         low_dist(&min_dist,WRITE);
@@ -2976,7 +2992,7 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
     filledCircleColor(*renderer,  x,  y, 9, 0xFF0000FF);
 
     char se_text[80]={'\0'};
-    snprintf(se_text, 79,"%s(%d)", start_end.name, start_end.on_cycle);
+    snprintf(se_text, 79,"%s", start_end.name); // cycle could be displayed too
     render_text(renderer, font, x+10, y, se_text);
     
     int i;
@@ -2992,19 +3008,20 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
         filledCircleColor(*renderer,  x_val,  y_val, 7, color);
         
         char all_text[80]={'\0'};
-        snprintf(all_text, 79,"%s(%d)", rest.name, rest.on_cycle);
+        snprintf(all_text, 79,"%s", rest.name);
         render_text(renderer, font, x_val,  y_val, all_text);
     }
 
     city c0,c_1;
-    //int prev_i=0;
+    
     city_info(&c0,0,READ);
     int next_i=c0.next_i;
+    UNUSED(next_i);
     city from=c0;
     city_info(&c_1,c0.next_i,READ);
     city to=c_1;
     thickLineColor(*renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
-    printf("next_i is %d,,,\n",next_i);
+    debug_printf("next_i is %d,,,\n",next_i);
     for(int n=0; n< CITY_NUM; n++)
     {
         city_info(&from,n , READ);
@@ -3012,7 +3029,7 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
         thickLineColor(*renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
         next_i=to.next_i;
     }
-    printf("\n");
+    debug_printf("\n");
     
     for(int n=0; n<CITY_NUM; n++)
     {
@@ -3022,7 +3039,7 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
         thickLineColor(*renderer, from.x, from.y, to.x, to.y, 1, 0xFFF0FF00); 
 #endif
     }
-    printf("\n");
+    debug_printf("\n");
 
     int *v3 = calloc(CITY_NUM + 1, sizeof(int));
     vertex3(v3);
