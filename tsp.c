@@ -54,6 +54,12 @@ const SDL_Color green ={0,255,0, 255};
 #define CITY_NUM 75
 #endif
 
+#ifdef EXAMPLE_200
+#define X_MAX 900//1000 
+#define Y_MAX 700//1000
+#define CITY_NUM 200
+#endif
+
 #define ALL_VISITED -1
 #define NOT_OC 0 //-1
 #define LAST_LAYER -1
@@ -3953,6 +3959,8 @@ int main(void)
     prepare("tsp_coord_float_50.text");
 #elif defined EXAMPLE_75
     prepare("tsp_coord_float_75.text");
+#elif defined EXAMPLE_200
+    prepare("tsp_coord_float_200.text");
 #endif
     
     float dis;

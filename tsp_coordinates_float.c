@@ -4,7 +4,7 @@
 
 #define X_MAX 800.0
 #define Y_MAX 600.0
-#define CITY_NUM 75
+#define CITY_NUM 200
 
 int main(void)
 {
