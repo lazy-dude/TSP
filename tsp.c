@@ -14,6 +14,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
 #include <SDL2/SDL_ttf.h>
+
+// ------------------------------------------ //
 const char *title = "TSP problem , graph theory , geometry";
 #define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf" // TODO use font location for Windows
 
@@ -27,6 +29,8 @@ const SDL_Color green ={0,255,0, 255};
 #define POINT_SIZE 512
 
 // ------------------------------------------ //
+#define SHOW_CONNECTIONS
+
 #ifdef EXAMPLE_8
 #define X_MAX 800 
 #define Y_MAX 600 
@@ -2963,6 +2967,8 @@ void render_text(SDL_Renderer ** renderer,TTF_Font *font,Sint16 x, Sint16 y, cha
 
 void render_sub(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
 {
+    UNUSED(renderer);
+    UNUSED(font);
     char text[80]={'\0'};
     char ts[80]={'\0'};
     float dis;
@@ -2973,9 +2979,10 @@ void render_sub(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
     
     snprintf(ts, 79, "Time elapsed on solving is %.2lf sec",time_elapsed);
     printf("%s\n",ts);
-    
+#ifdef SHOW_CONNECTIONS
     render_text(renderer,font,50,Y_MAX-25,text);
     render_text(renderer,font, 50, Y_MAX-10,ts);
+#endif
 }
 
 
@@ -3020,8 +3027,10 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
     city from=c0;
     city_info(&c_1,c0.next_i,READ);
     city to=c_1;
+#ifdef SHOW_CONNECTIONS
     thickLineColor(*renderer, from.x, from.y, to.x, to.y, 2, LINE_COLOR);
     debug_printf("next_i is %d,,,\n",next_i);
+    
     for(int n=0; n< CITY_NUM; n++)
     {
         city_info(&from,n , READ);
@@ -3030,7 +3039,7 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
         next_i=to.next_i;
     }
     debug_printf("\n");
-    
+#endif    
     for(int n=0; n<CITY_NUM; n++)
     {
         city_info(&from,n , READ);
@@ -3184,9 +3193,9 @@ int main(void)
         joints(j);
     for(j=0; j<MAX_CYCLES; j++)
          pre_search(vertices[j],vns[j]);
-    
+
     A_star_algorithm(); // search
-    
+
     clock_t end = clock();
     double time_elapsed = (double)(end - begin) / CLOCKS_PER_SEC;
     
@@ -3198,9 +3207,9 @@ int main(void)
     
     SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
     SDL_RenderClear(renderer);
-    
+
     render(&renderer, font, time_elapsed); 
-    
+
     SDL_RenderPresent(renderer);
         
     while (SDL_WaitEvent(&event))
