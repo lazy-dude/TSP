@@ -14,21 +14,8 @@
 #include <SDL2/SDL_ttf.h>
 
 // ------------------------------------------ //
-const char *title = "TSP problem , graph theory , geometry";
-#define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf" // TODO use font location for Windows
-
-const SDL_Color bg={240, 240, 240,255}; // back_ground
-const SDL_Color pol={200, 200, 200, 255}; // polygon
-const SDL_Color white = {255, 255, 255,255};
-const SDL_Color black = {0, 0, 0,255};
-const SDL_Color blue={0, 0, 255, 255};
-const SDL_Color green ={0,255,0, 255};
-#define LINE_COLOR 0xFFFF0000//0xFF0FFFF0
-#define POINT_SIZE 512
-
-// ------------------------------------------ //
 //#define DEBUG
-#define MAX_STATES 64 // 256
+#define MAX_STATES 64 // 256 
 #define SHOW_CONNECTIONS
 
 #ifdef EXAMPLE_8
@@ -62,6 +49,19 @@ const SDL_Color green ={0,255,0, 255};
 #define debug_printf(...)  ((void)0)
 #endif
 #define UNUSED(x) (void)(x)
+
+// ------------------------------------------ //
+const char *title = "TSP problem , graph theory , geometry";
+#define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf" // TODO use font location for Windows
+
+const SDL_Color bg={240, 240, 240,255}; // back_ground
+const SDL_Color pol={200, 200, 200, 255}; // polygon
+const SDL_Color white = {255, 255, 255,255};
+const SDL_Color black = {0, 0, 0,255};
+const SDL_Color blue={0, 0, 255, 255};
+const SDL_Color green ={0,255,0, 255};
+#define LINE_COLOR 0xFFFF0000//0xFF0FFFF0
+#define POINT_SIZE 512
 
 // ------------------------------------------ //
 
@@ -461,51 +461,108 @@ bool same_coor(city c1, city c2)
 }
 
 // TODO visit: https://rosettacode.org/wiki/Find_the_intersection_of_two_lines#C
-bool segments_intersect(city c1, city c2, city c3, city c4) 
-{
-    assert(strcmp(c1.name, c2.name));
-    assert(strcmp(c3.name, c4.name));
-    
-    assert(fabs(c2.x-c1.x) >EPS || fabs(c2.y-c1.y) >EPS);
-    assert(fabs(c4.x-c3.x) >EPS || fabs(c4.y-c3.y) >EPS);
-    if(same_coor(c2,c3) && same_coor(c1,c4))
-    {
-        fprintf(stderr,"same segments\n");
-        exit(1);
-    }
-    if(same_coor(c2,c3))
-        return false;
-    
-    
-    float a = (c2.y - c1.y) / (c2.x - c1.x);
-    float b = c1.y - a * c1.x;
-    
-    float c = (c4.y - c3.y) / (c4.x - c3.x);
-    float d = c3.y - c * c3.x;
-
-    float x, y;
-    
-    if(a==c)
-        return true;
-    x = (d - b) / (a - c);
-    y = (d * a - b * c) / (a - c);
-
-    if(fabsf(x - c1.x) < MIN_DIFF && fabsf(y - c1.y) < MIN_DIFF)
-        return false;
-    if(fabsf(x - c2.x) < MIN_DIFF && fabsf(y - c2.y) < MIN_DIFF)
-        return false;
-    if(fabsf(x - c3.x) < MIN_DIFF && fabsf(y - c3.y) < MIN_DIFF)
-        return false;
-    if(fabsf(x - c4.x) < MIN_DIFF && fabsf(y - c4.y) < MIN_DIFF)
-        return false;
-
-    if( 
-        x > (fmin(c1.x, c2.x)) && x < (fmax(c1.x, c2.x)) && x > (fmin(c3.x, c4.x)) && x < (fmax(c3.x, c4.x)) &&
-        y > (fmin(c1.y, c2.y)) && y < (fmax(c1.y, c2.y)) && y > (fmin(c3.y, c4.y)) && y < (fmax(c3.y, c4.y)))
-        return true;
-    return false;
+float line_slope(city a,city b){
+	
+	if(a.x-b.x == 0.0)
+		return NAN;
+	else
+		return (a.y-b.y)/(a.x-b.x);
+}
+city intersection_point(city a1,city a2,city b1,city b2){
+	city c;
+	
+	float slopeA = line_slope(a1,a2);
+	float slopeB = line_slope(b1,b2);
+	
+	if(slopeA==slopeB)
+	{
+		c.x = NAN;
+		c.y = NAN;
+	}
+	else if(isnan(slopeA) && !isnan(slopeB))
+	{
+		c.x = a1.x;
+		c.y = (a1.x-b1.x)*slopeB + b1.y;
+	}
+	else if(isnan(slopeB) && !isnan(slopeA))
+	{
+		c.x = b1.x;
+		c.y = (b1.x-a1.x)*slopeA + a1.y;
+	}
+	else
+	{
+		c.x = (slopeA*a1.x - slopeB*b1.x + b1.y - a1.y)/(slopeA - slopeB);
+		c.y = slopeB*(c.x - b1.x) + b1.y;
+	}
+	
+	return c;
 }
 
+int point_in_poly(int nvert, float *vertx, float *verty, float testx, float testy)
+{
+  int i, j, c = 0;
+  for (i = 0, j = nvert-1; i < nvert; j = i++) {
+    if ( ((verty[i]>testy) != (verty[j]>testy)) &&
+     (testx < (vertx[j]-vertx[i]) * (testy-verty[i]) / (verty[j]-verty[i]) + vertx[i]) )
+       c = !c;
+  }
+  return c;
+}
+bool point_in_quadrilateral(city a1, city a2, city b1, city b2) 
+{
+    int c;
+    float vertx[4]={a1.x, a2.x, b1.x, b2.x};
+    float verty[4]={a1.y, a2.y, b1.y, b2.y};
+    
+    city ip = intersection_point(a1, a2, b1, b2);
+    if(isnan(ip.x))
+	    return false;
+    c = point_in_poly(4, vertx, verty, ip.x, ip.y);
+    if(c==0)
+        return false;
+    return true;
+}
+
+// Returns 1 if the lines intersect, otherwise 0. In addition, if the lines 
+// intersect the intersection point may be stored in the floats i_x and i_y.
+bool get_line_intersection(float p0_x, float p0_y, float p1_x, float p1_y, 
+    float p2_x, float p2_y, float p3_x, float p3_y)
+{
+    float s1_x, s1_y, s2_x, s2_y;
+    s1_x = p1_x - p0_x;     s1_y = p1_y - p0_y;
+    s2_x = p3_x - p2_x;     s2_y = p3_y - p2_y;
+
+    float s, t;
+    s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
+    t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
+
+    if (s >= 0 && s <= 1 && t >= 0 && t <= 1)
+    {
+        // Collision detected
+        float i_x = p0_x + (t * s1_x);
+        float i_y = p0_y + (t * s1_y);
+        
+        if(fabs(i_x-p0_x)<EPS && fabs(i_y-p0_y)<EPS)
+            return false;
+        if(fabs(i_x-p1_x)<EPS && fabs(i_y-p1_y)<EPS)
+            return false;
+        if(fabs(i_x-p2_x)<EPS && fabs(i_y-p2_y)<EPS)
+            return false;
+        if(fabs(i_x-p3_x)<EPS && fabs(i_y-p3_y)<EPS)
+            return false;
+            
+        return true;
+    }
+
+    return false; // No collision
+}
+bool segments_intersect(city a1, city a2, city b1, city b2)
+{
+    //return point_in_quadrilateral(a1, a2, b1, b2);
+    return get_line_intersection(a1.x, a1.y, a2.x, a2.y, b1.x, b1.y, b2.x, b2.y);
+}
+
+// ------------------------------------------------------- //
 bool inside_cycle(int *vertices, int vert_num, int io_ind) 
 {
     assert(vert_num >= 3);
@@ -3150,7 +3207,7 @@ void prepare(char * file_name)
 
 int main(void)
 {
-    assert(CITY_NUM >= 3);
+    assert(CITY_NUM >= 8);
     clock_t begin = clock();
 
 #ifdef EXAMPLE_50 
