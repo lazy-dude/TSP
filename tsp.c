@@ -1,8 +1,6 @@
 // Originally from:
 // https://github.com/DubiousCactus/GeneticAlgorithm
 
-#define MAX_STATES 64 // 256
-
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
@@ -19,16 +17,18 @@
 const char *title = "TSP problem , graph theory , geometry";
 #define FONT "/usr/share/fonts/gnu-free/FreeSans.ttf" // TODO use font location for Windows
 
-const SDL_Color bg={255, 255, 255,255}; // back_ground
-const SDL_Color pol={200, 200, 200, 0xFF}; // polygon
+const SDL_Color bg={240, 240, 240,255}; // back_ground
+const SDL_Color pol={200, 200, 200, 255}; // polygon
 const SDL_Color white = {255, 255, 255,255};
 const SDL_Color black = {0, 0, 0,255};
 const SDL_Color blue={0, 0, 255, 255};
 const SDL_Color green ={0,255,0, 255};
-#define LINE_COLOR 0xFF0FFFF0
+#define LINE_COLOR 0xFFFF0000//0xFF0FFFF0
 #define POINT_SIZE 512
 
 // ------------------------------------------ //
+//#define DEBUG
+#define MAX_STATES 64 // 256
 #define SHOW_CONNECTIONS
 
 #ifdef EXAMPLE_8
@@ -56,7 +56,6 @@ const SDL_Color green ={0,255,0, 255};
 #endif
 // ------------------------------------------ //
 
-//#define DEBUG
 #ifdef DEBUG
 #define debug_printf printf
 #else
@@ -3010,7 +3009,7 @@ void render(SDL_Renderer **renderer,TTF_Font *font, double time_elapsed)
         float x_val = rest.x;
         float y_val = rest.y;
         
-        Uint32 color=0xFFFF0000; // two colors is possible too
+        Uint32 color=0xFF00FF00; // two colors is possible too
         
         filledCircleColor(*renderer,  x_val,  y_val, 7, color);
         
