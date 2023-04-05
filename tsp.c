@@ -451,6 +451,7 @@ bool vertex3(int *v3)
     return true;
 }
 
+// ----------------------------------------------------------- //
 #define MIN_DIFF 5
 #define EPS 0.01
 bool same_coor(city c1, city c2)
@@ -460,71 +461,6 @@ bool same_coor(city c1, city c2)
     return false;
 }
 
-// TODO visit: https://rosettacode.org/wiki/Find_the_intersection_of_two_lines#C
-float line_slope(city a,city b){
-	
-	if(a.x-b.x == 0.0)
-		return NAN;
-	else
-		return (a.y-b.y)/(a.x-b.x);
-}
-city intersection_point(city a1,city a2,city b1,city b2){
-	city c;
-	
-	float slopeA = line_slope(a1,a2);
-	float slopeB = line_slope(b1,b2);
-	
-	if(slopeA==slopeB)
-	{
-		c.x = NAN;
-		c.y = NAN;
-	}
-	else if(isnan(slopeA) && !isnan(slopeB))
-	{
-		c.x = a1.x;
-		c.y = (a1.x-b1.x)*slopeB + b1.y;
-	}
-	else if(isnan(slopeB) && !isnan(slopeA))
-	{
-		c.x = b1.x;
-		c.y = (b1.x-a1.x)*slopeA + a1.y;
-	}
-	else
-	{
-		c.x = (slopeA*a1.x - slopeB*b1.x + b1.y - a1.y)/(slopeA - slopeB);
-		c.y = slopeB*(c.x - b1.x) + b1.y;
-	}
-	
-	return c;
-}
-
-int point_in_poly(int nvert, float *vertx, float *verty, float testx, float testy)
-{
-  int i, j, c = 0;
-  for (i = 0, j = nvert-1; i < nvert; j = i++) {
-    if ( ((verty[i]>testy) != (verty[j]>testy)) &&
-     (testx < (vertx[j]-vertx[i]) * (testy-verty[i]) / (verty[j]-verty[i]) + vertx[i]) )
-       c = !c;
-  }
-  return c;
-}
-bool point_in_quadrilateral(city a1, city a2, city b1, city b2) 
-{
-    int c;
-    float vertx[4]={a1.x, a2.x, b1.x, b2.x};
-    float verty[4]={a1.y, a2.y, b1.y, b2.y};
-    
-    city ip = intersection_point(a1, a2, b1, b2);
-    if(isnan(ip.x))
-	    return false;
-    c = point_in_poly(4, vertx, verty, ip.x, ip.y);
-    if(c==0)
-        return false;
-    return true;
-}
-
-// Returns 1 if the lines intersect, otherwise 0. In addition, if the lines 
-// intersect the intersection point may be stored in the floats i_x and i_y.
 bool get_line_intersection(float p0_x, float p0_y, float p1_x, float p1_y, 
     float p2_x, float p2_y, float p3_x, float p3_y)
 {
@@ -542,6 +478,7 @@ bool get_line_intersection(float p0_x, float p0_y, float p1_x, float p1_y,
         float i_x = p0_x + (t * s1_x);
         float i_y = p0_y + (t * s1_y);
         
+        // Ignore intersection of vertices
         if(fabs(i_x-p0_x)<EPS && fabs(i_y-p0_y)<EPS)
             return false;
         if(fabs(i_x-p1_x)<EPS && fabs(i_y-p1_y)<EPS)
@@ -550,7 +487,7 @@ bool get_line_intersection(float p0_x, float p0_y, float p1_x, float p1_y,
             return false;
         if(fabs(i_x-p3_x)<EPS && fabs(i_y-p3_y)<EPS)
             return false;
-            
+        
         return true;
     }
 
